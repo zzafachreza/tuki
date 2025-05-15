@@ -27,7 +27,7 @@ export default function HomeKPSP({ navigation }) {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity onPress={() => navigation.navigate("MulaiKPSP")} style={styles.button}>
           <Text style={styles.buttonText}>Mulai</Text>
         </TouchableOpacity>
       </ScrollView>

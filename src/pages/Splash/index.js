@@ -52,7 +52,7 @@ export default function Splash({ navigation }) {
       position: 'relative'
     }}>
 
-      <ImageBackground source={require('../../assets/bgimg.png')} style={{
+      <ImageBackground source={require('../../assets/bgsplash.png')} style={{
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
@@ -62,7 +62,7 @@ export default function Splash({ navigation }) {
       }}>
 
         <Animated.Image
-          source={require('../../assets/logosplash.png')}
+          source={require('../../assets/logo.png')}
           resizeMode="contain"
           style={{
             transform: [{ scale: img }],
@@ -73,49 +73,7 @@ export default function Splash({ navigation }) {
           }}
         />
       
-      <View style={{
-        marginTop:'20%',
-        alignItems:"center"
-      }}>
-      <Animated.Text Style={{
-          opacity: textOpacity,
-          transform: [{ scale: textScale }],
-          textAlign: 'center',
-          color: colors.white,
-          fontFamily: fonts.primary[600],
-          fontSize: 20,
-      }}>
-          <Text style={{
-            fontFamily:fonts.primary[600],
-            fontSize: 20,
-            color:colors.white,
-         
-          }}>PT Wali Karunia Sejahtera</Text>
-        </Animated.Text>
-
-          <Animated.Text style={{
-            opacity:textOpacity,
-            transform: [{ scale: textScale }],
-            textAlign:"center",
-            marginTop:10,
-            paddingHorizontal:20,
-            color:colors.white,
-            fontFamily:fonts.primary[400],
-            fontSize:12,
-            lineHeight:20,
-            textAlign:"center"
-          }}>
-            <Text style={{
-              fontFamily:fonts.primary[500],
-              color:colors.white,
-              fontSize:12,
-              
-            }}>
-            Lembah Cinere Indah, Jalan Kelapa Sawit Blok E No. 130 Cinere,
-            Depok Indonesia 16514
-            </Text>
-          </Animated.Text>
-      </View>
+ 
           
         <ActivityIndicator style={{marginTop:50}} color={colors.primary} size="small" />
 

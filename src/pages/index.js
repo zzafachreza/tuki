@@ -17,7 +17,7 @@ import TambahSiKecil from './tambahsikecil';
 import ProfileSiKecil from './tambahsikecil/profile';
 import HomeKPSP from './kpsp';
 import MulaiKPSP from './kpsp/mulai';
-
+import SoalKPSP from './kpsp/soal';
 
 
 
@@ -41,6 +41,7 @@ export {
 ProfileSiKecil,
 HomeKPSP,
 MulaiKPSP,
+SoalKPSP,
 
 
 

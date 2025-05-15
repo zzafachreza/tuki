@@ -128,9 +128,29 @@ export default function Home({ navigation }) {
               <Text style={[styles.kpspStatus, anak.length === 0 && { color: '#A29CB6' }]}>  {anak.length === 0 ? 'Tambahkan profil si Kecil terlebih dahulu' : 'Belum Mulai'}</Text>
             </View>
             <View style={{ justifyContent: 'space-between' }}>
-              <TouchableOpacity onPress={() => { if (anak.length === 0) { setShowKpspAlert(true); } else { } }} style={[styles.mulaiBtn, anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#FFA500' }]}>
-                <Text style={[styles.mulaiText, anak.length === 0 && { color: 'white' }]}>Mulai</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+  onPress={() => {
+    if (anak.length === 0) {
+      setShowKpspAlert(true);
+    } else {
+      navigation.navigate('HomeKPSP');
+    }
+  }}
+  style={[
+    styles.mulaiBtn,
+    anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#FFA500' }
+  ]}
+>
+  <Text
+    style={[
+      styles.mulaiText,
+      anak.length === 0 && { color: 'white' }
+    ]}
+  >
+    Mulai
+  </Text>
+</TouchableOpacity>
+
               <TouchableOpacity onPress={() => { if (anak.length === 0) { setShowKpspAlert(true); } else { } }} style={[styles.riwayatBtn, anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#ccc' }]}>
                 <Text style={[styles.riwayatText, anak.length === 0 && { color: 'white' }]}>Riwayat</Text>
               </TouchableOpacity>

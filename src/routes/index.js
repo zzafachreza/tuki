@@ -72,6 +72,7 @@ import {
   ProfileSiKecil,
   HomeKPSP,
   MulaiKPSP,
+  SoalKPSP,
 
 
 
@@ -99,7 +100,7 @@ const Stack = createStackNavigator();
 
 export default function Router() {
   return (
-    <Stack.Navigator initialRouteName='MulaiKPSP'>
+    <Stack.Navigator initialRouteName=''>
       <Stack.Screen
         name="Splash"
         component={Splash}
@@ -161,8 +162,8 @@ export default function Router() {
 
       
 <Stack.Screen
-        name="TambahBuktiPengeluaran"
-        component={TambahBuktiPengeluaran}
+        name="SoalKPSP"
+        component={SoalKPSP}
         options={{
           headerShown: false,
 

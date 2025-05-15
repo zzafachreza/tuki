@@ -1,14 +1,16 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Modal, Animated, Easing, TouchableWithoutFeedback } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
 import { colors, fonts } from '../../utils';
 import { MyHeader } from '../../components';
 import { getData } from '../../utils/localStorage';
 import moment from 'moment';
+import { Icon } from 'react-native-elements';
 
 export default function MulaiKPSP({ navigation }) {
   const [anakList, setAnakList] = useState([]);
   const [selectedAnak, setSelectedAnak] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const slideAnim = useRef(new Animated.Value(1000)).current;
 
   useEffect(() => {
     getData('anak').then(res => {
@@ -35,33 +37,87 @@ export default function MulaiKPSP({ navigation }) {
     });
   }, []);
 
+  const openModal = () => {
+    setShowModal(true);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeModal = () => {
+    Animated.timing(slideAnim, {
+      toValue: 1000,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => setShowModal(false));
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.secondary }}>
       <MyHeader title='KPSP' />
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <View style={styles.introCard}>
           <Text style={styles.question}>Siapa yang mau diskrining hari ini ?</Text>
-          <TouchableOpacity onPress={() => setShowModal(true)}>
+          <TouchableOpacity onPress={openModal}>
             {selectedAnak ? (
               <Image source={selectedAnak.foto?.uri ? { uri: selectedAnak.foto.uri } : require('../../assets/anak.png')} style={styles.fotoPlaceholder} />
             ) : (
-              <View style={styles.fotoPlaceholder} />
+              <View style={styles.fotoPlaceholder} >
+              <Image source={require('../../assets/icon-bayi.png')} style={{
+                height:25,
+                width:25,
+              }}/>
+              </View>
             )}
           </TouchableOpacity>
           <TouchableOpacity
             disabled={!selectedAnak}
             style={[styles.mulaiButton, { backgroundColor: selectedAnak ? '#FFA500' : '#D9D9D9' }]}
-            onPress={() => navigation.navigate('HomeKPSP', { index: anakList.findIndex(a => a.nama === selectedAnak.nama) })}>
+onPress={() =>
+  navigation.navigate('SoalKPSP', {
+    dataAnak: selectedAnak,
+    usia_bulan: selectedAnak.usia_bulan, // atau Math.floor(selectedAnak.usia_bulan)
+  })
+}
+>
             <Text style={styles.mulaiButtonText}>Mulai</Text>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.reminder}>Jawablah pertanyaan–pertanyaannya dengan <Text style={{ fontStyle: 'italic' }}>jujur</Text> ya parents.</Text>
 
-        <Modal visible={showModal} transparent animationType="fade">
+        <Modal visible={showModal} transparent animationType="none">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <MyHeader title="Si Kecil" onBackPress={() => setShowModal(false)} />
+            <Animated.View style={[styles.modalBox, { transform: [{ translateY: slideAnim }] }]}>
+              <View style={{ padding: 10 }}>
+            <TouchableWithoutFeedback onPress={closeModal}>
+              <View style={{
+                padding:10,
+                flexDirection:"row",
+                justifyContent:"flex-start",
+                alignItems:"center",
+              }}>
+               <View style={{
+                padding:5,
+                backgroundColor:colors.white,
+                borderRadius:50,
+                borderWidth:1,
+               }}>
+                 <Icon name='arrow-back' size={25} type='ionicon' color={colors.black} style={{}}/>
+               </View>
+                <Text style={{
+                  fontFamily:fonts.primary[600],
+                  fontSize:18,
+                  top :2,
+                  left:10
+                }}>Si Kecil</Text>
+              </View>
+            </TouchableWithoutFeedback>
+              </View>
               <ScrollView contentContainerStyle={{ padding: 20 }}>
                 <View style={styles.wrapCard}>
                   {anakList.map((item, index) => (
@@ -70,7 +126,7 @@ export default function MulaiKPSP({ navigation }) {
                       style={styles.card}
                       onPress={() => {
                         setSelectedAnak(item);
-                        setShowModal(false);
+                        closeModal();
                       }}>
                       <Image
                         source={item.foto?.uri ? { uri: item.foto.uri } : require('../../assets/anak.png')}
@@ -83,7 +139,7 @@ export default function MulaiKPSP({ navigation }) {
                   ))}
                 </View>
               </ScrollView>
-            </View>
+            </Animated.View>
           </View>
         </Modal>
       </ScrollView>
@@ -112,19 +168,23 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 20,
     backgroundColor: '#D9D9D9',
-    marginBottom: 20
+    marginBottom: 20,
+    justifyContent:'center',
+    alignItems:'center',
   },
   mulaiButton: {
     paddingVertical: 12,
     paddingHorizontal: 40,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: '#999'
+    borderColor: '#999',
+    width:"100%"
   },
   mulaiButtonText: {
     fontFamily: fonts.primary[700],
     fontSize: 16,
-    color: '#000'
+    color: '#000',
+    textAlign: 'center'
   },
   wrapCard: {
     flexDirection: 'row',
@@ -173,11 +233,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end'
   },
   modalBox: {
-    flex: 1,
     backgroundColor: colors.secondary,
     borderTopLeftRadius: 20,
-    borderTopRightRadius: 20
+    borderTopRightRadius: 20,
+    maxHeight: '85%'
   }
 });
