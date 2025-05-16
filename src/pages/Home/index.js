@@ -9,7 +9,7 @@ import {
   FlatList,
   Modal
 } from 'react-native';
-import { getData, storeData } from '../../utils/localStorage';
+import { getData, storeData, pushNotif,  } from '../../utils/localStorage';
 import { colors, fonts } from '../../utils';
 import moment from 'moment';
 
@@ -18,46 +18,92 @@ export default function Home({ navigation }) {
   const [anak, setAnak] = useState([]);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showKpspAlert, setShowKpspAlert] = useState(false);
+  const [showKpspThanks, setShowKpspThanks] = useState(false);
+
+  const getIconBintang = (status) => {
+    switch (status) {
+      case 'Sesuai Umur':
+        return require('../../assets/bintang-hijau.png');
+      case 'Meragukan':
+        return require('../../assets/bintang-kuning.png');
+      case 'Ada Kemungkinan Penyimpangan':
+        return require('../../assets/bintang-merah.png');
+      default:
+        return require('../../assets/bintang-abu.png');
+    }
+  };
+
+useEffect(() => {
+  const checkNotif = async () => {
+    const anak = await getData('anak');
+    if (!anak || anak.length === 0) {
+      await pushNotif({
+        title: 'Profil si Kecil',
+        message: 'Halo Parents! Selamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.',
+      });
+    } else {
+      const kpspStatuses = await Promise.all(
+        anak.map(async (a) => {
+          const kpsp = await getData(`kpsp_${a.id}`);
+          return !kpsp;
+        })
+      );
+      if (kpspStatuses.includes(true)) {
+        await pushNotif({
+          title: 'Ayo mulai skrining dengan KPSP',
+          message: 'Halo Parents!\nProfil si kecil sudah, yuk kita mulai skrining si kecil',
+        });
+      }
+    }
+  };
+
+  checkNotif();
+}, []);
 
   useEffect(() => {
-    getData('user').then((u) => {
-      setUser(u);
+    const unsubscribe = navigation.addListener('focus', () => {
+      const showThanks = navigation.getState()?.routes?.find(r => r.name === 'MainApp')?.params?.showKpspThanks;
+      if (showThanks) {
+        setShowKpspThanks(true);
+        navigation.setParams({ showKpspThanks: false });
+      }
     });
+    return unsubscribe;
+  }, [navigation]);
 
-    getData('anak').then((a) => {
+  useEffect(() => {
+    getData('user').then(setUser);
+    getData('anak').then(async (a) => {
       if (a) {
-        const updated = a.map(item => {
-          let birthDate = moment(item.tanggal_lahir);
-          const now = moment();
+        const updated = await Promise.all(
+          a.map(async item => {
+            const birthDate = moment(item.tanggal_lahir);
+            const now = moment();
+            const years = now.diff(birthDate, 'years');
+            const months = now.diff(birthDate.clone().add(years, 'years'), 'months');
+            const days = now.diff(birthDate.clone().add(years, 'years').add(months, 'months'), 'days');
 
-          let usia = moment.duration(now.diff(birthDate));
-
-          if (item.prematur === 'Ya' && item.minggu_kelahiran) {
-            const mingguKoreksi = 40 - parseInt(item.minggu_kelahiran);
-            const hariKoreksi = mingguKoreksi * 7;
-            birthDate = moment(item.tanggal_lahir).add(hariKoreksi, 'days');
-            usia = moment.duration(now.diff(birthDate));
-          }
-
-          const years = Math.floor(usia.asYears());
-          const months = Math.floor(usia.asMonths()) % 12;
-          const days = Math.floor(usia.asDays()) % 30;
-
-          return {
-            ...item,
-            usia: `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`
-          };
-        });
+            const kpspData = await getData(`kpsp_${item.id}`);
+            return {
+              ...item,
+              usia: `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`,
+              statusKPSP: kpspData?.status || null,
+              tanggalKPSP: kpspData?.tanggal || null,
+              waktuKPSP: kpspData?.waktu || null,
+            };
+          })
+        );
         setAnak(updated);
       } else {
         setAnak([]);
       }
     });
 
+
+    
+
     getData('welcome_shown').then(value => {
-      if (value !== 'true') {
-        setShowWelcome(true);
-      }
+      if (value !== 'true') setShowWelcome(true);
     });
   }, []);
 
@@ -73,9 +119,11 @@ export default function Home({ navigation }) {
         style={styles.childPhoto}
       />
       <View style={{ padding: 10 }}>
-        <View style={styles.childTitleRow}>
-          <Text style={styles.childName}>{item.nama}</Text>
-        </View>
+        <Image
+          source={getIconBintang(item.statusKPSP)}
+          style={{ width: 20, height: 20, position: 'absolute', top: 8, right: 8, zIndex: 10 }}
+        />
+        <Text style={styles.childName}>{item.nama}</Text>
         <Text style={styles.childText}>{item.usia}</Text>
         <Text style={styles.childText}>⚖️ {item.bb} kg   📏 {item.tb} cm</Text>
       </View>
@@ -83,8 +131,8 @@ export default function Home({ navigation }) {
   );
 
   const today = new Date();
-  const dateStr = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-  const timeStr = `${today.getHours().toString().padStart(2, '0')}:${today.getMinutes().toString().padStart(2, '0')} WIB`;
+  const dateStr = moment(today).format('DD/MM/YYYY');
+  const timeStr = moment(today).format('HH:mm') + ' WIB';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.secondary }}>
@@ -95,29 +143,27 @@ export default function Home({ navigation }) {
             <Text style={styles.hallo}>Hallo ,</Text>
             <Text style={styles.nama}>{getUsername(user?.email)}</Text>
           </View>
-          <TouchableOpacity style={styles.notifButton}>
+          <TouchableOpacity onPress={() => navigation.navigate("Notifikasi")} style={styles.notifButton}>
             <Image source={require('../../assets/bell.png')} style={styles.bell} />
           </TouchableOpacity>
         </View>
 
         <Text style={styles.label}>Si Kecil</Text>
-        <View style={styles.childRow}>
-          <FlatList
-            data={[...anak, { isPlus: true }]}
-            horizontal
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item, index }) =>
-              item.isPlus ? (
-                <TouchableOpacity onPress={() => navigation.navigate("TambahSiKecil")} style={styles.addCard}>
-                  <Text style={styles.addText}>+</Text>
-                </TouchableOpacity>
-              ) : (
-                renderAnak({ item, index })
-              )
-            }
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
+        <FlatList
+          data={[...anak, { isPlus: true }]}
+          horizontal
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item, index }) =>
+            item.isPlus ? (
+              <TouchableOpacity onPress={() => navigation.navigate("TambahSiKecil")} style={styles.addCard}>
+                <Text style={styles.addText}>+</Text>
+              </TouchableOpacity>
+            ) : (
+              renderAnak({ item, index })
+            )
+          }
+          showsHorizontalScrollIndicator={false}
+        />
 
         <View style={styles.section}>
           <Text style={styles.ajakan}>Ayo mulai pantau tumbuh kembang si Kecil</Text>
@@ -125,40 +171,88 @@ export default function Home({ navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={[styles.kpspTitle, anak.length === 0 && { color: colors.black }]}>KPSP</Text>
               <Text style={[styles.kpspSubtitle, anak.length === 0 && { color: '#A29CB6' }]}>Keusioner Pra Skrining Perkembangan</Text>
-              <Text style={[styles.kpspStatus, anak.length === 0 && { color: '#A29CB6' }]}>  {anak.length === 0 ? 'Tambahkan profil si Kecil terlebih dahulu' : 'Belum Mulai'}</Text>
+              <Text style={[styles.kpspStatus, anak.length === 0 && { color: '#A29CB6' }]}>
+                {anak.length === 0
+                  ? 'Tambahkan profil si Kecil terlebih dahulu'
+                  : anak.some(a => a.tanggalKPSP)
+                    ? `Terakhir ${moment(Math.max(...anak
+                        .filter(a => a.tanggalKPSP)
+                        .map(a => moment(a.tanggalKPSP, 'YYYY-MM-DD HH:mm').toDate().getTime())))
+                        .format('DD/MM/YYYY')}`
+                    : 'Belum Mulai'}
+              </Text>
             </View>
             <View style={{ justifyContent: 'space-between' }}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (anak.length === 0) {
+                    setShowKpspAlert(true);
+                  } else {
+                    navigation.navigate('HomeKPSP');
+                  }
+                }}
+                style={[styles.mulaiBtn, anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#FFA500' }]}>
+                <Text style={[styles.mulaiText, anak.length === 0 && { color: 'white' }]}>Mulai</Text>
+              </TouchableOpacity>
             <TouchableOpacity
   onPress={() => {
     if (anak.length === 0) {
       setShowKpspAlert(true);
     } else {
-      navigation.navigate('HomeKPSP');
+      navigation.navigate('RiwayatKPSP');
     }
   }}
   style={[
-    styles.mulaiBtn,
-    anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#FFA500' }
+    styles.riwayatBtn,
+    anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#ccc' }
   ]}
 >
-  <Text
-    style={[
-      styles.mulaiText,
-      anak.length === 0 && { color: 'white' }
-    ]}
-  >
-    Mulai
+  <Text style={[
+    styles.riwayatText,
+    anak.length === 0 && { color: 'white' }
+  ]}>
+    Riwayat
   </Text>
 </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => { if (anak.length === 0) { setShowKpspAlert(true); } else { } }} style={[styles.riwayatBtn, anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#ccc' }]}>
-                <Text style={[styles.riwayatText, anak.length === 0 && { color: 'white' }]}>Riwayat</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
+
+        {/* 🟩 Riwayat KPSP */}
+        {anak
+          .filter(a => a.statusKPSP && a.tanggalKPSP)
+          .map((a, i) => {
+            let bgColor = '#ccc';
+            if (a.statusKPSP === 'Sesuai Umur') bgColor = '#DDFBE8';
+            else if (a.statusKPSP === 'Meragukan') bgColor = '#FFF7DB';
+            else if (a.statusKPSP === 'Ada Kemungkinan Penyimpangan') bgColor = '#FFE5E5';
+
+            return (
+              <View key={i} style={{
+                backgroundColor: bgColor,
+                marginTop: 16,
+                borderRadius: 10,
+                padding: 16,
+                marginHorizontal: 20,
+                borderWidth: 1,
+                borderColor: '#ccc',
+                width:"100%",
+                right:20
+              }}>
+                <Text style={{ fontFamily: fonts.primary[700], fontSize: 16, color: '#333' }}>
+                  {a.nama}, {a.statusKPSP}
+                </Text>
+                <Text style={{ fontFamily: fonts.primary[400], fontSize: 12, color: '#666', marginTop: 4 }}>
+                  {moment(a.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('DD/MM/YYYY')} {moment(a.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('HH:mm')} WIB
+                </Text>
+              </View>
+            );
+          })}
+
       </ScrollView>
 
+      {/* Modal Welcome */}
       <Modal visible={showWelcome} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -178,11 +272,33 @@ export default function Home({ navigation }) {
         </View>
       </Modal>
 
+      {/* Modal KPSP Alert */}
       <Modal visible={showKpspAlert} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={[styles.modalTitle, { textAlign: 'center' }]}>Isi profil Si Kecil terlebih dahulu untuk mengakses KPSP</Text>
             <TouchableOpacity style={styles.modalButton} onPress={() => setShowKpspAlert(false)}>
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+            <View style={styles.modalFooter}>
+              <Text style={styles.modalFooterText}>{dateStr}</Text>
+              <Text style={styles.modalFooterText}>{timeStr}</Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Terima Kasih */}
+      <Modal visible={showKpspThanks} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={[styles.modalTitle, { textAlign: 'center' }]}>
+              Terima kasih, Parents!
+            </Text>
+            <Text style={[styles.modalMessage, { textAlign: 'center' }]}>
+              Sudah menyediakan waktunya untuk melakukan skrining dengan KPSP 💜
+            </Text>
+            <TouchableOpacity style={styles.modalButton} onPress={() => setShowKpspThanks(false)}>
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
             <View style={styles.modalFooter}>

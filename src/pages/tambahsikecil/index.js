@@ -39,26 +39,30 @@ export default function TambahSiKecil({ navigation }) {
     form.lk &&
     form.lla;
 
-  const simpanData = async () => {
-    if (!isFormValid()) {
-      Alert.alert('Oops', 'Semua field wajib diisi!');
-      return;
-    }
+ const simpanData = async () => {
+  if (!isFormValid()) {
+    Alert.alert('Oops', 'Semua field wajib diisi!');
+    return;
+  }
 
-    const dataAnakBaru = {
-      ...form,
-      usia: '00 thn / 00 bln / 00 hr',
-    };
+const dataAnakBaru = {
+  ...form,
+  id: Date.now(), // ID unik dalam bentuk number
+  usia: '00 thn / 00 bln / 00 hr',
+  tanggal_daftar: moment().format('YYYY-MM-DD'),
+};
 
-    const dataLama = await getData('anak');
-    if (dataLama) {
-      storeData('anak', [...dataLama, dataAnakBaru]);
-    } else {
-      storeData('anak', [dataAnakBaru]);
-    }
 
-    navigation.replace("MainApp");
-  };
+  const dataLama = await getData('anak');
+  if (dataLama) {
+    storeData('anak', [...dataLama, dataAnakBaru]);
+  } else {
+    storeData('anak', [dataAnakBaru]);
+  }
+
+  navigation.replace("MainApp");
+};
+
 
   const pilihFoto = () => {
     launchImageLibrary({ mediaType: 'photo', quality: 0.5 }, res => {

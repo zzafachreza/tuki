@@ -16,9 +16,26 @@ export default function ProfileSiKecil({ navigation, route }) {
     getData('anak').then(res => {
       if (res) {
         const idx = route?.params?.index ?? 0;
-        setAnak(res[idx]);
+        const selectedAnak = res[idx];
+
+        // Hitung usia dari tanggal lahir (dengan koreksi prematur jika perlu)
+        let birthDate = moment(selectedAnak.tanggal_lahir);
+        const now = moment();
+
+        if (selectedAnak.prematur === 'Ya' && selectedAnak.minggu_kelahiran) {
+          const koreksiHari = (40 - parseInt(selectedAnak.minggu_kelahiran)) * 7;
+          birthDate = birthDate.add(koreksiHari, 'days');
+        }
+
+        const usia = moment.duration(now.diff(birthDate));
+        const years = Math.floor(usia.asYears());
+        const months = Math.floor(usia.asMonths()) % 12;
+        const days = Math.floor(usia.asDays()) % 30;
+        selectedAnak.usia = `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`;
+
+        setAnak(selectedAnak);
+        setForm(selectedAnak);
         setIndex(idx);
-        setForm(res[idx]);
       }
     });
   }, []);
@@ -32,7 +49,7 @@ export default function ProfileSiKecil({ navigation, route }) {
           const data = await getData('anak');
           const updated = data.filter((_, i) => i !== index);
           await storeData('anak', updated);
-          navigation.goBack();
+          navigation.replace('MainApp');
         },
         style: 'destructive',
       },
@@ -69,12 +86,7 @@ export default function ProfileSiKecil({ navigation, route }) {
 
         {edit ? (
           <View style={styles.editCard}>
-            <TextInput
-              value={form.nama}
-              onChangeText={(val) => setForm({ ...form, nama: val })}
-              placeholder="Nama Lengkap"
-              style={styles.input}
-            />
+            <TextInput value={form.nama} onChangeText={(val) => setForm({ ...form, nama: val })} placeholder="Nama Lengkap" style={styles.input} />
 
             <Text style={styles.label}>Jenis Kelamin</Text>
             <View style={styles.radioGroup}>
@@ -88,12 +100,7 @@ export default function ProfileSiKecil({ navigation, route }) {
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              placeholder="DD/MM/YYYY"
-              value={form.tanggal_lahir}
-              onChangeText={(val) => setForm({ ...form, tanggal_lahir: val })}
-              style={styles.input}
-            />
+            <TextInput placeholder="DD/MM/YYYY" value={form.tanggal_lahir} onChangeText={(val) => setForm({ ...form, tanggal_lahir: val })} style={styles.input} />
 
             <Text style={styles.label}>Apakah Si Kecil lahir prematur?</Text>
             <View style={styles.radioGroup}>
@@ -107,34 +114,11 @@ export default function ProfileSiKecil({ navigation, route }) {
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              placeholder="Berat Badan saat ini/terakhir (kg)"
-              keyboardType="numeric"
-              value={form.bb}
-              onChangeText={(val) => setForm({ ...form, bb: val })}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Tinggi Badan saat ini/terakhir (cm)"
-              keyboardType="numeric"
-              value={form.tb}
-              onChangeText={(val) => setForm({ ...form, tb: val })}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Lingkar Kepala saat ini/terakhir (cm)"
-              keyboardType="numeric"
-              value={form.lk}
-              onChangeText={(val) => setForm({ ...form, lk: val })}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Lingkar Lengan Atas saat ini/terakhir (cm)"
-              keyboardType="numeric"
-              value={form.lla}
-              onChangeText={(val) => setForm({ ...form, lla: val })}
-              style={styles.input}
-            />
+            <TextInput placeholder="Berat Badan saat ini/terakhir (kg)" keyboardType="numeric" value={form.bb} onChangeText={(val) => setForm({ ...form, bb: val })} style={styles.input} />
+            <TextInput placeholder="Tinggi Badan saat ini/terakhir (cm)" keyboardType="numeric" value={form.tb} onChangeText={(val) => setForm({ ...form, tb: val })} style={styles.input} />
+            <TextInput placeholder="Lingkar Kepala saat ini/terakhir (cm)" keyboardType="numeric" value={form.lk} onChangeText={(val) => setForm({ ...form, lk: val })} style={styles.input} />
+            <TextInput placeholder="Lingkar Lengan Atas saat ini/terakhir (cm)" keyboardType="numeric" value={form.lla} onChangeText={(val) => setForm({ ...form, lla: val })} style={styles.input} />
+
             <TouchableOpacity style={styles.saveBtn} onPress={simpanPerubahan}>
               <Text style={styles.saveText}>Simpan</Text>
             </TouchableOpacity>
@@ -145,13 +129,13 @@ export default function ProfileSiKecil({ navigation, route }) {
         ) : (
           <View>
             <View style={styles.infoBox}>
-              <Icon type='ionicon' name={iconGender} size={20} color={colorGender} style={{ marginRight: 10 }} />
+              <Icon type="ionicon" name={iconGender} size={20} color={colorGender} style={{ marginRight: 10 }} />
               <Text style={styles.genderText}>{anak.nama}</Text>
             </View>
 
             <View style={styles.birthBox}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon type='ionicon' name='calendar-sharp' size={20} />
+                <Icon type="ionicon" name="calendar-sharp" size={20} />
                 <Text style={styles.birthText}>{moment(anak.tanggal_lahir).format('DD/MM/YYYY')}</Text>
               </View>
               <Text style={styles.ageText}>{anak.usia || '00 thn / 00 bln / 00 hr'}</Text>
@@ -160,7 +144,7 @@ export default function ProfileSiKecil({ navigation, route }) {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={styles.label}>Status Pertumbuhan</Text>
               <TouchableOpacity onPress={() => setEdit(true)}>
-                <Icon type='ionicon' name='create-outline' size={20} color={'#999'} />
+                <Icon type="ionicon" name="create-outline" size={20} color={'#999'} />
               </TouchableOpacity>
             </View>
             <Text style={styles.subtitle}>Terakhir diupdate {anak.tanggal_update || anak.tanggal_daftar}</Text>

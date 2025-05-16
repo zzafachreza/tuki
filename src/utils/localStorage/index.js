@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import moment from 'moment'; // tambahkan jika belum ada
+
 
 export const storeData = async (key, value) => {
   try {
@@ -13,12 +15,32 @@ export const getData = async key => {
     const value = await AsyncStorage.getItem(key);
     if (value !== null) {
       return JSON.parse(value);
+    } else {
+      return null;
     }
   } catch (e) {
-    // error reading value
+    console.log('GAGAL GET DATA:', key, e);
+    return null;
   }
 };
 
+
+
+export const pushNotif = async (notifBaru) => {
+  try {
+    const lama = await getData('notifikasi');
+    const baru = {
+      id: Date.now(),
+      title: notifBaru.title,
+      message: notifBaru.message,
+      timestamp: moment().format('YYYY-MM-DD HH:mm')
+    };
+    const semua = lama && Array.isArray(lama) ? [baru, ...lama] : [baru];
+    await AsyncStorage.setItem('notifikasi', JSON.stringify(semua));
+  } catch (e) {
+    console.log('Gagal pushNotif:', e);
+  }
+};
 
 export const apiURL = 'https://nutrishot.okeadmin.com/api/';
 export const MYAPP = 'NUTRISHOT';

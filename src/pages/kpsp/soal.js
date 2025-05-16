@@ -62,6 +62,13 @@ export default function SoalKPSP({ navigation, route }) {
     }
   };
 
+  const hitungStatusKPSP = () => {
+    const jumlahYa = jawaban.filter(j => j === 'ya').length;
+    if (jumlahYa >= 9) return 'Sesuai Umur';
+    if (jumlahYa >= 7) return 'Meragukan';
+    return 'Ada Kemungkinan Penyimpangan';
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.secondary }}>
       <MyHeader title='Kembali' />
@@ -87,12 +94,39 @@ export default function SoalKPSP({ navigation, route }) {
 
         <View style={styles.gridBox}>
           {[...Array(10).keys()].map((i) => (
-            <View key={i} style={[styles.gridButton, i === nomorAktif && styles.activeButton]}>
+            <TouchableOpacity
+              key={i}
+              onPress={() => setNomorAktif(i)}
+              style={[
+                styles.gridButton,
+                jawaban[i] !== null && styles.answeredButton,
+                i === nomorAktif && styles.activeButton
+              ]}
+            >
               <Text style={styles.gridText}>{i + 1}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
-          <TouchableOpacity style={[styles.gridButton, styles.simpanButton]}>
-            <Text style={styles.gridText}>simpan</Text>
+          <TouchableOpacity
+            style={[
+              styles.gridButton,
+              styles.simpanButton,
+              jawaban.every((j) => j !== null) && { backgroundColor: colors.success }
+            ]}
+            onPress={() => {
+              if (jawaban.every((j) => j !== null)) {
+                const statusKPSP = hitungStatusKPSP();
+                navigation.navigate('HasilKPSP', {
+                  statusKPSP,
+                  dataAnak,
+                  jawaban
+                });
+              }
+            }}
+          >
+            <Text style={[
+              styles.gridText,
+              jawaban.every((j) => j !== null) && { color: colors.white }
+            ]}>simpan</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -188,7 +222,10 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   activeButton: {
-    backgroundColor: '#EADCF1'
+    backgroundColor: '#D2A4DC' // ungu untuk soal aktif
+  },
+  answeredButton: {
+    backgroundColor: '#D2A4DC' // biru muda untuk soal sudah dijawab
   },
   simpanButton: {
     width: '48%'

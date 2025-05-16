@@ -73,6 +73,9 @@ import {
   HomeKPSP,
   MulaiKPSP,
   SoalKPSP,
+  HasilKPSP,
+  RiwayatKPSP,
+  Notifikasi,
 
 
 
@@ -100,7 +103,7 @@ const Stack = createStackNavigator();
 
 export default function Router() {
   return (
-    <Stack.Navigator initialRouteName=''>
+    <Stack.Navigator initialRouteName='MainApp'>
       <Stack.Screen
         name="Splash"
         component={Splash}
@@ -171,8 +174,26 @@ export default function Router() {
       />
 
 <Stack.Screen
-        name="HasilBuatPenawaran"
-        component={HasilBuatPenawaran}
+        name="HasilKPSP"
+        component={HasilKPSP}
+        options={{
+          headerShown: false,
+
+        }}
+      />
+
+      <Stack.Screen
+        name="RiwayatKPSP"
+        component={RiwayatKPSP}
+        options={{
+          headerShown: false,
+
+        }}
+      />
+
+           <Stack.Screen
+        name="Notifikasi"
+        component={Notifikasi}
         options={{
           headerShown: false,
 

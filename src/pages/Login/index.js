@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Login({ navigation }) {
   const [data, setData] = useState({ email: '', password: '' });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(1));
   const [errorEmail, setErrorEmail] = useState('');
@@ -18,6 +19,8 @@ export default function Login({ navigation }) {
       useNativeDriver: true,
     }).start(() => {
       setIsRegister(mode);
+      setData({ email: '', password: '' });
+      setConfirmPassword('');
       setErrorEmail('');
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -28,12 +31,20 @@ export default function Login({ navigation }) {
   };
 
   const handleRegister = async () => {
-    if (data.email === '' || data.password === '') {
+    if (data.email === '' || data.password === '' || confirmPassword === '') {
       showMessage({
         type: 'danger',
         backgroundColor: colors.danger,
         color: colors.white,
         message: 'Semua Field Harus Diisi!',
+        position: 'top',
+      });
+    } else if (data.password !== confirmPassword) {
+      showMessage({
+        type: 'danger',
+        backgroundColor: colors.danger,
+        color: colors.white,
+        message: 'Password dan Konfirmasi tidak cocok!',
         position: 'top',
       });
     } else {
@@ -48,6 +59,7 @@ export default function Login({ navigation }) {
         });
         setIsRegister(false);
         setData({ email: '', password: '' });
+        setConfirmPassword('');
       } catch (err) {
         console.log(err);
       }
@@ -89,7 +101,7 @@ export default function Login({ navigation }) {
     }
   };
 
-  const isFilled = data.email !== '' && data.password !== '';
+  const isFilled = data.email !== '' && data.password !== '' && (!isRegister || confirmPassword !== '');
 
   return (
     <ImageBackground
@@ -100,7 +112,7 @@ export default function Login({ navigation }) {
           <Image source={require('../../assets/logo.png')} style={{ width: 200, height: 100, resizeMode: 'contain' }} />
         </View>
 
-        {/* Tab */}
+        {/* Tab Switch */}
         <View style={{
           flexDirection: 'row',
           backgroundColor: 'white',
@@ -137,7 +149,7 @@ export default function Login({ navigation }) {
           </TouchableNativeFeedback>
         </View>
 
-        {/* Input Form */}
+        {/* Form */}
         <Animated.View style={{ opacity: fadeAnim }}>
           <MyInput
             label="Email"
@@ -166,7 +178,7 @@ export default function Login({ navigation }) {
             label="Password"
             placeholder="Masukkan Password"
             iconname="lock-closed-outline"
-            secureTextEntry={true}
+            secureTextEntry
             value={data.password}
             onChangeText={(x) => {
               setData({ ...data, password: x });
@@ -174,32 +186,42 @@ export default function Login({ navigation }) {
             }}
           />
 
-          <TouchableNativeFeedback>
-            <View style={{
-              alignItems: 'flex-end',
-              marginTop: 5,
-              opacity: isRegister ? 0 : 1,
-              height: 18
-            }}>
-              <Text style={{
-                fontFamily: fonts.primary[600],
-                fontSize: 13,
-                color: '#9C42C4'
-              }}>
-                Lupa Password ?
-              </Text>
-            </View>
-          </TouchableNativeFeedback>
+          {isRegister && (
+            <MyInput
+              label="Konfirmasi Password"
+              placeholder="Masukkan ulang password"
+              iconname="lock-closed-outline"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={(x) => setConfirmPassword(x)}
+            />
+          )}
 
-          {/* Tombol Login/Register */}
+          {!isRegister && (
+            <TouchableNativeFeedback>
+              <View style={{
+                alignItems: 'flex-end',
+                marginTop: 5,
+                height: 18
+              }}>
+                <Text style={{
+                  fontFamily: fonts.primary[600],
+                  fontSize: 13,
+                  color: '#9C42C4'
+                }}>
+                  Lupa Password ?
+                </Text>
+              </View>
+            </TouchableNativeFeedback>
+          )}
+
           <TouchableNativeFeedback onPress={isRegister ? handleRegister : handleLogin}>
             <View style={{
               backgroundColor: isFilled ? '#9C42C4' : '#d1d1d1',
               paddingVertical: 14,
               borderRadius: 30,
               marginTop: 20,
-              alignItems: 'center',
-              elevation: 2
+              alignItems: 'center'
             }}>
               <Text style={{
                 fontFamily: fonts.primary[600],
