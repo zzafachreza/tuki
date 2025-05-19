@@ -5,152 +5,150 @@ import {
     View,
     SafeAreaView,
     Image,
-    Linking,
-    Alert,
-    ActivityIndicator,
     ScrollView,
+    TouchableOpacity,
+    ImageBackground,
 } from 'react-native';
-import { windowWidth, fonts } from '../../utils/fonts';
-import { apiURL, getData, MYAPP, storeData, urlAPI, urlApp, urlAvatar } from '../../utils/localStorage';
-import { Color, colors } from '../../utils/colors';
-import { MyButton, MyCalendar, MyGap, MyHeader, MyInput, MyPicker } from '../../components';
-import { Icon } from 'react-native-elements';
-import { TouchableOpacity } from 'react-native-gesture-handler';
-import { useIsFocused } from '@react-navigation/native';
-import axios from 'axios';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import moment from 'moment';
+import { fonts, colors } from '../../utils';
+import { apiURL, getData, MYAPP, storeData } from '../../utils/localStorage';
+import { MyButton, MyHeader, MyInput, MyPicker } from '../../components';
+import { launchImageLibrary } from 'react-native-image-picker';
 import SweetAlert from 'react-native-sweet-alert';
 import MyLoading from '../../components/MyLoading';
+import axios from 'axios';
 
 export default function AccountEdit({ navigation, route }) {
+const [kirim, setKirim] = useState({
+  nama: route.params.nama_lengkap || '',
+  jenis_kelamin: route.params.jenis_kelamin || '',
+  telepon: route.params.telepon || '',
+  provinsi: route.params.provinsi || '',
+  kota: route.params.kota || '',
+  email: route.params.email || '',
+  foto_user: route.params.foto_user || null,
+  newfoto_user: null
+});
 
-
-    const [kirim, setKirim] = useState(route.params);
     const [loading, setLoading] = useState(false);
+
     const sendServer = () => {
         setLoading(true);
-        console.log(kirim);
         axios.post(apiURL + 'update_profile', kirim).then(res => {
-            console.log(res.data)
-
             setLoading(false);
-
             if (res.data.status == 200) {
                 SweetAlert.showAlertWithOptions({
                     title: MYAPP,
                     subTitle: res.data.message,
                     style: 'success',
                     cancellable: true
-                },
-                    callback => {
-                        storeData('user', res.data.data);
-                        navigation.replace('MainApp');
-                    });
-
-
+                }, callback => {
+                    storeData('user', res.data.data);
+                    navigation.replace('MainApp');
+                });
             }
-        })
-    }
+        });
+    };
 
     useEffect(() => {
         setKirim({
             ...kirim,
             newfoto_user: null,
-        })
-    }, [])
+        });
+    }, []);
+
+    const pilihFoto = () => {
+        launchImageLibrary({ mediaType: 'photo', quality: 0.5 }, res => {
+            if (!res.didCancel && res.assets) {
+                setKirim({ ...kirim, newfoto_user: res.assets[0].uri });
+            }
+        });
+    };
 
     return (
-        <SafeAreaView style={{
-            flex: 1,
-            backgroundColor: colors.white,
-        }}>
-            <MyHeader title="Edit Profile" onPress={() => navigation.goBack()} />
-            <ScrollView showsVerticalScrollIndicator={false} style={{
-                paddingHorizontal: 20,
-            }}>
+        <ImageBackground source={require('../../assets/bgsplash.png')} style={styles.container}>
+        <MyHeader title='Ubah Profile'/>
+            <ScrollView contentContainerStyle={styles.wrapper}>
+                <Image source={require('../../assets/logo.png')} style={styles.logo} />
+                <TouchableOpacity onPress={pilihFoto} style={styles.fotoWrap}>
+               {(kirim.newfoto_user || kirim.foto_user) ? (
+  <Image source={{ uri: kirim.newfoto_user || kirim.foto_user }} style={styles.foto} />
 
-                <View style={{
-                    padding: 10,
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                }}>
-                    <TouchableOpacity onPress={() => {
+                    ) : (
+                        <View style={styles.plusBox}><Text style={styles.plusText}>+</Text></View>
+                    )}
+                </TouchableOpacity>
 
-
-                        launchImageLibrary({
-                            includeBase64: true,
-                            quality: 1,
-                            mediaType: "photo",
-                            maxWidth: 200,
-                            maxHeight: 200
-                        }, response => {
-                            // console.log('All Response = ', response);
-
-                            setKirim({
-                                ...kirim,
-                                newfoto_user: `data:${response.type};base64, ${response.base64}`,
-                            });
-                        });
-
-
-
-                    }} style={{
-                        width: 100,
-                        height: 100,
-                        borderWidth: 1,
-                        borderColor: Color.blueGray[100],
-                        overflow: 'hidden',
-                        borderRadius: 20,
-                        justifyContent: 'center',
-                        alignItems: 'center'
-                    }}>
-                        <Image style={{
-                            width: 100,
-                            height: 100,
-                        }} source={{
-                            uri: kirim.newfoto_user !== null ? kirim.newfoto_user : kirim.foto_user,
-                        }} />
+                <MyInput label="Nama Lengkap Parents" iconname="person-outline" value={kirim.nama} onChangeText={x => setKirim({ ...kirim, nama: x })} />
+                <Text style={styles.label}>Jenis Kelamin</Text>
+                <View style={styles.row}>
+                    <TouchableOpacity style={styles.radio} onPress={() => setKirim({ ...kirim, jenis_kelamin: 'Perempuan' })}>
+                        <View style={[styles.radioOuter, kirim.jenis_kelamin === 'Perempuan' && styles.radioActive]} />
+                        <Text style={styles.radioLabel}>Perempuan</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.radio} onPress={() => setKirim({ ...kirim, jenis_kelamin: 'Laki-laki' })}>
+                        <View style={[styles.radioOuter, kirim.jenis_kelamin === 'Laki-laki' && styles.radioActive]} />
+                        <Text style={styles.radioLabel}>Laki-laki</Text>
                     </TouchableOpacity>
                 </View>
+                <MyInput label="Nomor Telepon" iconname="call-outline" value={kirim.telepon} onChangeText={x => setKirim({ ...kirim, telepon: x })} />
+                <MyPicker
+                    label="Provinsi"
+                    iconname="location-outline"
+                    value={kirim.provinsi}
+                    onChangeText={(val) => setKirim({ ...kirim, provinsi: val })}
+                    data={[
+                        { label: 'DKI Jakarta', value: 'DKI Jakarta' },
+                        { label: 'Jawa Barat', value: 'Jawa Barat' },
+                        { label: 'Jawa Tengah', value: 'Jawa Tengah' },
+                    ]}
+                />
+                <MyPicker
+                    label="Kota/Kabupaten"
+                    iconname="business-outline"
+                    value={kirim.kota}
+                    onChangeText={(val) => setKirim({ ...kirim, kota: val })}
+                    data={[
+                        { label: 'Jakarta Pusat', value: 'Jakarta Pusat' },
+                        { label: 'Bandung', value: 'Bandung' },
+                        { label: 'Semarang', value: 'Semarang' },
+                    ]}
+                />
 
+                <TouchableOpacity onPress={sendServer} style={styles.saveBtn}>
+                    <Text style={styles.saveText}>Simpan</Text>
+                </TouchableOpacity>
 
-
-                <MyInput label="Username" iconname="at-outline" value={kirim.username} onChangeText={x => setKirim({ ...kirim, username: x })} />
-                <MyGap jarak={20} />
-                <MyInput label="Nama Lengkap" iconname="person-outline" value={kirim.nama_lengkap} onChangeText={x => setKirim({ ...kirim, nama_lengkap: x })} />
-                <MyGap jarak={20} />
-                <MyInput label="Nomor Telepon" iconname="call-outline" keyboardType='phone-pad' value={kirim.telepon} onChangeText={x => setKirim({ ...kirim, telepon: x })} />
-                <MyGap jarak={20} />
-                <MyPicker value={kirim.jenis_kelamin} label="Jenis Kelamin" iconname="male-female-outline" data={[
-                    { label: 'Laki-laki', value: 'Laki-laki' },
-                    { label: 'Perempuan', value: 'Perempuan' },
-                ]}
-                    onValueChange={x => {
-                        setKirim({
-                            ...kirim,
-                            jenis_kelamin: x
-                        })
-                    }} />
-                <MyGap jarak={20} />
-
-                <MyCalendar label={'Tanggal Lahir ( ' + moment().diff(kirim.tanggal_lahir, 'years') + ' Tahun )'} onDateChange={x => {
-                    setKirim({
-                        ...kirim,
-                        tanggal_lahir: x
-                    })
-                }} value={kirim.tanggal_lahir} />
-
-                <MyGap jarak={20} />
-                <MyInput label="Password" iconname="lock-closed-outline" secureTextEntry={true} onChangeText={x => setKirim({ ...kirim, newpassword: x })} placeholder="Kosongkan jika tidak diubah" />
-                <MyGap jarak={20} />
                 {loading && <MyLoading />}
-
-                {!loading && <MyButton warna={colors.secondary} colorText={colors.white} iconColor={colors.white} onPress={sendServer} title="Simpan Perubahan" Icons="download-outline" />}
-                <MyGap jarak={20} />
             </ScrollView>
-        </SafeAreaView >
-    )
+        </ImageBackground>
+    );
 }
 
-const styles = StyleSheet.create({})
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#F9EDF7' },
+    wrapper: { padding: 20 },
+    logo: { width: 200, height: 102,  alignSelf: 'center', marginTop:-20 },
+    title: { fontFamily: fonts.primary[800], fontSize: 20, textAlign: 'center', marginVertical: 20 },
+    fotoWrap: {
+        alignSelf: 'center',
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#D9D9D9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+        marginBottom: 20,
+    },
+    foto: { width: '100%', height: '100%' },
+    plusBox: { width: 40, height: 40, backgroundColor: '#ccc', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+    plusText: { fontSize: 24, color: '#999' },
+    label: { fontFamily: fonts.primary[600], fontSize: 14, marginBottom: 10 },
+    row: { flexDirection: 'row', marginBottom: 20 },
+    radio: { flexDirection: 'row', alignItems: 'center', marginRight: 20 },
+    radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#2D2D2D', marginRight: 8 },
+    radioActive: { backgroundColor: '#2D2D2D' },
+    radioLabel: { fontFamily: fonts.primary[400], fontSize: 14 },
+    saveBtn: { backgroundColor: '#9C42C4', padding: 16, borderRadius: 30, marginTop: 30, alignItems: 'center' },
+    saveText: { fontFamily: fonts.primary[700], fontSize: 16, color: 'white' },
+});

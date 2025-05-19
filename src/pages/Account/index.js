@@ -1,191 +1,224 @@
 import React, { useEffect, useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    View,
-    SafeAreaView,
-    Image,
-    Linking,
-    Alert,
-    ActivityIndicator,
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  Image,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
 } from 'react-native';
-import { windowWidth, fonts, MyDimensi } from '../../utils/fonts';
-import { getData, MYAPP, storeData, urlAPI, urlApp, urlAvatar } from '../../utils/localStorage';
-import { Color, colors } from '../../utils/colors';
-import { MyButton, MyGap, MyHeader } from '../../components';
+import { getData, storeData } from '../../utils/localStorage';
+import { fonts, colors } from '../../utils';
 import { Icon } from 'react-native-elements';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useIsFocused } from '@react-navigation/native';
-import axios from 'axios';
-import LinearGradient from 'react-native-linear-gradient';
-import moment from 'moment';
-import { ScrollView } from 'react-native';
-import { Collator } from 'intl';
+import { MyHeader } from '../../components';
 
-export default function ({ navigation, route }) {
-    const [user, setUser] = useState({});
-    const [com, setCom] = useState({});
-    const isFocused = useIsFocused();
-    const [wa, setWA] = useState('');
-    const [open, setOpen] = useState(false);
+export default function ProfileScreen({ navigation }) {
+  const [user, setUser] = useState({});
+  const [anakCount, setAnakCount] = useState(0);
+  const isFocused = useIsFocused();
+  const [loading, setLoading] = useState(true);
 
-
-
-    useEffect(() => {
-
-
-        if (isFocused) {
-            getData('user').then(res => {
-                console.log(res)
-                setOpen(true);
-                setUser(res);
-
-            });
-        }
-
-
-
-
-    }, [isFocused]);
-
-
-
-    const btnKeluar = () => {
-        Alert.alert(MYAPP, 'Apakah kamu yakin akan keluar ?', [
-            {
-                text: 'Batal',
-                style: "cancel"
-            },
-            {
-                text: 'Keluar',
-                onPress: () => {
-                    storeData('user', null);
-
-                    navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Splash' }],
-                    });
-                }
-            }
-        ])
-    };
-
-    const MyList = ({ label, value }) => {
-        return (
-            <View style={{
-                marginTop:10
-            }}>
-                 <Text
-                    style={{
-                       fontFamily:fonts.primary[600],
-                       color:colors.primary,
-                       marginLeft:10
-
-                    }}>
-                    {label}
-                </Text>
-
-
-                <View
-                style={{
-                    marginVertical: 2,
-                    padding: 5,
-                    paddingHorizontal: 10,
-                    backgroundColor: Color.blueGray[50],
-                    borderRadius: 30,
-                    height:40
-                }}>
-               
-                <Text
-                    style={{
-                        ...fonts.body3,
-                        color: Color.blueGray[900],
-                    }}>
-                    {value}
-                </Text>
-            </View>
-            </View>
-          
-        )
+  useEffect(() => {
+    if (isFocused) {
+      getData('user').then(res => {
+        setUser(res || {});
+        setLoading(false);
+      });
+      getData('anak').then(res => {
+        setAnakCount(res?.length || 0);
+      });
     }
+  }, [isFocused]);
+
+  const handleLogout = () => {
+    Alert.alert('Konfirmasi', 'Apakah kamu yakin ingin keluar?', [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Keluar',
+        onPress: () => {
+          storeData('user', null);
+          navigation.reset({ index: 0, routes: [{ name: 'Splash' }] });
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
     return (
-        <SafeAreaView style={{
-            flex: 1,
-            backgroundColor: colors.white
-        }}>
-
-
-            <MyHeader title="Akun Saya" onPress={() => navigation.goBack()} />
-            {!open && <View style={{
-                flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center'
-            }}>
-                <ActivityIndicator size="large" color={colors.primary} />
-            </View>}
-            <ScrollView showsVerticalScrollIndicator={false}>
-                {open &&
-
-                    <View style={{
-                        margin: 5,
-                        flex: 1,
-                    }}>
-                        <View style={{
-                            justifyContent: 'center',
-                            alignItems: 'center'
-                        }}>
-                            
-                        </View>
-                        <View style={{ padding: 10, }}>
-                            <MyList label="Nama Lengkap :" value={'Angga Kurniawan'} />
-                            <MyList label="Email :" value={'anggakurniawan12@gmail.com'} />
-                            <MyList label="Telepon :" value={'0865665467467'} />
-                            <MyList label="Alamat Lengkap :" value={'Depok, Jawa Barat'} />
-                            <View style={{
-                                padding:10,
-                                marginTop:10,
-
-                            }}>
-
-                            <Text style={{
-                                fontFamily  :fonts.primary[600],
-                                color:colors.primary
-                            }}>
-                            Foto Tanda Tangan : 
-                            </Text>
-
-                            <View style={{
-                                padding:10,
-                                marginTop:10,
-                                backgroundColor:Color.blueGray[50],
-                                borderRadius:30
-                            }}>
-
-                            <Image style={{
-                                width:127,
-                                height:120,
-                                alignSelf:'center'
-                            }} source={require('../../assets/ttd_dummmy.png')}/>
-
-                            </View>
-
-                            </View>
-                           
-                        </View>
-                        {/* data detail */}
-                    </View>
-
-                }
-                <View style={{
-                    padding: 20,
-                }}>
-                    <MyButton warna={colors.primary} title="Edit Profile"  onPress={() => navigation.navigate('AccountEdit', user)} />
-                    <MyGap jarak={10} />
-                    <MyButton onPress={btnKeluar} warna={Color.blueGray[400]} title="Log Out"  iconColor={colors.white} colorText={colors.white} />
-                </View>
-            </ScrollView>
-        </SafeAreaView >
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+    <MyHeader title='Profile Parents'/>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileCard}>
+          <View style={styles.rowTop}>
+            <Image
+              source={user.foto?.uri ? { uri: user.foto.uri } : require('../../assets/user.png')}
+              style={styles.avatar}
+            />
+            <View style={styles.profileText}>
+              <Text style={styles.hallo}>Hallo ,</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.name}>{user.nama || 'Tidak diketahui'}</Text>
+                {user.kelamin === 'Laki-Laki' && <Text style={styles.maleIcon}> ♂</Text>}
+                {user.kelamin === 'Perempuan' && <Text style={styles.femaleIcon}> ♀</Text>}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.childCountBox}>
+            <Image source={require('../../assets/bayi.png')} style={styles.babyIcon} />
+            <Text style={styles.childCount}>{anakCount}</Text>
+          </View>
+        </View>
+
+        {/* Info */}
+        <View style={styles.infoBox}>
+          <View style={styles.infoItem}><Text style={styles.label}>Email</Text><Text>{user.email || '-'}</Text></View>
+          <View style={styles.infoItem}><Text style={styles.label}>Nomor Telepon</Text><Text>{user.telepon || '-'}</Text></View>
+          <View style={styles.infoItem}><Text style={styles.label}>Provinsi</Text><Text>{user.provinsi || '-'}</Text></View>
+          <View style={styles.infoItem}><Text style={styles.label}>Kota/Kabupaten</Text><Text>{user.kota || '-'}</Text></View>
+        </View>
+
+        <TouchableOpacity style={styles.editBtn} onPress={() => {
+  navigation.navigate('AccountEdit', {
+    nama_lengkap: user.nama || '',
+    jenis_kelamin: user.kelamin || '',
+    telepon: user.telepon || '',
+    email: user.email || '',
+    username: user.username || '',
+    provinsi: user.provinsi || '',
+    kota: user.kota || '',
+    tanggal_lahir: user.tanggal_lahir || '',
+    foto_user: user.foto?.uri || null,
+  });
+}}
+>
+          <Text style={styles.editBtnText}>Ubah Profil</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleLogout}>
+          <Text style={styles.deleteBtnText}>Hapus Profil</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F3EAF4',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  profileCard: {
+    marginBottom: 20,
+    backgroundColor: 'transparent',
+  },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 12,
+  },
+  profileText: {
+    flex: 1,
+  },
+  hallo: {
+    fontFamily: fonts.primary[400],
+    fontSize: 16,
+  },
+  name: {
+    fontFamily: fonts.primary[700],
+    fontSize: 20,
+    color: colors.black,
+  },
+  maleIcon: {
+    color: '#007AFF',
+    fontSize: 20,
+  },
+  femaleIcon: {
+    color: '#FF2D55',
+    fontSize: 20,
+  },
+  childCountBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#ccc'
+  },
+  babyIcon: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+    marginRight: 8,
+    tintColor:"#9F48B8"
+  },
+  childCount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.black,
+  },
+  infoBox: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginBottom: 20,
+  },
+  infoItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingVertical: 10,
+  },
+  label: {
+    fontFamily: fonts.primary[600],
+    marginBottom: 2,
+  },
+  editBtn: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderColor: '#333',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  editBtnText: {
+    fontFamily: fonts.primary[400],
+    color: '#333',
+  },
+  deleteBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    fontFamily: fonts.primary[400],
+    color: 'red',
+  },
+});

@@ -46,14 +46,14 @@ export default function MyPicker({
         onPress={() => setModalVisible(true)}
       >
         <View style={styles.iconContainer}>
-          <Icon type="ionicon" name={iconname} color={Color.blueGray[300]} size={24} />
+          <Icon type="ionicon" name={iconname} color={Color.blueGray[300]} size={20} />
         </View>
         {/* Menampilkan nilai yang dipilih atau teks placeholder */}
         <Text style={styles.selectedText}>
           {selectedItem ? selectedItem.label : 'Select an option'}
         </Text>
         <View style={styles.iconContainer}>
-          <Icon type="ionicon" name="caret-down-outline" color={Color.blueGray[300]} size={24} />
+          <Icon type="ionicon" name="caret-down-outline" color={Color.blueGray[300]} size={20} />
         </View>
       </TouchableOpacity>
 
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 30,
     borderColor: Color.blueGray[300],
-    minHeight: 60,  // Atur minimum height supaya cukup untuk teks panjang
+    minHeight: 40,  // Atur minimum height supaya cukup untuk teks panjang
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,

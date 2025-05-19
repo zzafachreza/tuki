@@ -54,7 +54,7 @@ export default function MyInput({
           <View style={{
             paddingLeft: 12,
           }}>
-            <Icon type='ionicon' name={iconname} color={Color.blueGray[300]} size={24} />
+            <Icon type='ionicon' name={iconname} color={Color.blueGray[300]} size={20} />
           </View>
         )}
         <TextInput

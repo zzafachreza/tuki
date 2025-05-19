@@ -3,6 +3,8 @@ import React from 'react';
 import { colors, fonts } from '../../utils';
 import { storeData, pushNotif } from '../../utils/localStorage';
 import moment from 'moment';
+import { CommonActions } from '@react-navigation/native';
+
 
 export default function HasilKPSP({ route, navigation }) {
   const { statusKPSP, dataAnak, jawaban } = route.params;
@@ -86,17 +88,20 @@ await pushNotif({
           ))}
         </View>
 
-        <TouchableOpacity
-          onPress={async () => {
-            await simpanHasilKeStorage();
-            navigation.replace('MainApp', {
-              showKpspThanks: true,
-            });
-          }}
-          style={styles.btnSimpan}
-        >
-          <Text style={styles.textBtn}>Selesai</Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+  onPress={async () => {
+    await simpanHasilKeStorage();
+    await storeData('kpsp_thanks_pending', 'true');
+
+    navigation.navigate('MainApp', {
+      screen: 'Home',
+    });
+  }}
+  style={styles.btnSimpan}
+>
+  <Text style={styles.textBtn}>Selesai</Text>
+</TouchableOpacity>
+
       </ScrollView>
     </View>
   );

@@ -59,7 +59,7 @@ const dataAnakBaru = {
   } else {
     storeData('anak', [dataAnakBaru]);
   }
-
+  await storeData('anak_success_pending', 'true'); // Tambahkan flag
   navigation.replace("MainApp");
 };
 

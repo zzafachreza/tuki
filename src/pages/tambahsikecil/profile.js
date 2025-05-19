@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, StyleSheet, Image, TouchableOpacity, Alert, TextInput } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { colors, fonts } from '../../utils';
-import { MyHeader } from '../../components';
+import { MyHeader, MyCalendar } from '../../components';
 import { getData, storeData } from '../../utils/localStorage';
 import moment from 'moment';
 import { Icon } from 'react-native-elements';
@@ -17,21 +17,6 @@ export default function ProfileSiKecil({ navigation, route }) {
       if (res) {
         const idx = route?.params?.index ?? 0;
         const selectedAnak = res[idx];
-
-        // Hitung usia dari tanggal lahir (dengan koreksi prematur jika perlu)
-        let birthDate = moment(selectedAnak.tanggal_lahir);
-        const now = moment();
-
-        if (selectedAnak.prematur === 'Ya' && selectedAnak.minggu_kelahiran) {
-          const koreksiHari = (40 - parseInt(selectedAnak.minggu_kelahiran)) * 7;
-          birthDate = birthDate.add(koreksiHari, 'days');
-        }
-
-        const usia = moment.duration(now.diff(birthDate));
-        const years = Math.floor(usia.asYears());
-        const months = Math.floor(usia.asMonths()) % 12;
-        const days = Math.floor(usia.asDays()) % 30;
-        selectedAnak.usia = `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`;
 
         setAnak(selectedAnak);
         setForm(selectedAnak);
@@ -57,14 +42,31 @@ export default function ProfileSiKecil({ navigation, route }) {
   };
 
   const simpanPerubahan = async () => {
-    const data = await getData('anak');
-    const updated = [...data];
-    updated[index] = {
+    const now = moment();
+    let birthDate = moment(form.tanggal_lahir);
+
+    if (form.prematur === 'Ya' && form.minggu_kelahiran) {
+      const koreksiHari = (40 - parseInt(form.minggu_kelahiran)) * 7;
+      birthDate = birthDate.add(koreksiHari, 'days');
+    }
+
+    const usia = moment.duration(now.diff(birthDate));
+const years = now.diff(birthDate, 'years');
+const months = now.diff(birthDate.clone().add(years, 'years'), 'months');
+const days = now.diff(birthDate.clone().add(years, 'years').add(months, 'months'), 'days');
+    const usiaFormatted = `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`;
+
+    const updatedForm = {
       ...form,
       tanggal_update: moment().format('YYYY-MM-DD'),
+      usia: usiaFormatted,
     };
+
+    const data = await getData('anak');
+    const updated = [...data];
+    updated[index] = updatedForm;
     await storeData('anak', updated);
-    setAnak(updated[index]);
+    setAnak(updatedForm);
     setEdit(false);
   };
 
@@ -72,6 +74,21 @@ export default function ProfileSiKecil({ navigation, route }) {
 
   const iconGender = anak.jenis_kelamin === 'Laki-Laki' ? 'male-sharp' : 'female-sharp';
   const colorGender = anak.jenis_kelamin === 'Laki-Laki' ? '#4287f5' : '#DA506F';
+
+  const getUsia = () => {
+    let birthDate = moment(anak.tanggal_lahir);
+    const now = moment();
+    if (anak.prematur === 'Ya' && anak.minggu_kelahiran) {
+      const koreksiHari = (40 - parseInt(anak.minggu_kelahiran)) * 7;
+      birthDate = birthDate.add(koreksiHari, 'days');
+    }
+    const usia = moment.duration(now.diff(birthDate));
+   const years = now.diff(birthDate, 'years');
+const months = now.diff(birthDate.clone().add(years, 'years'), 'months');
+const days = now.diff(birthDate.clone().add(years, 'years').add(months, 'months'), 'days');
+return `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`;
+
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.secondary }}>
@@ -100,7 +117,11 @@ export default function ProfileSiKecil({ navigation, route }) {
               </TouchableOpacity>
             </View>
 
-            <TextInput placeholder="DD/MM/YYYY" value={form.tanggal_lahir} onChangeText={(val) => setForm({ ...form, tanggal_lahir: val })} style={styles.input} />
+            <MyCalendar
+              label="Tanggal Lahir"
+              value={form.tanggal_lahir}
+              onDateChange={(val) => setForm({ ...form, tanggal_lahir: val })}
+            />
 
             <Text style={styles.label}>Apakah Si Kecil lahir prematur?</Text>
             <View style={styles.radioGroup}>
@@ -138,7 +159,7 @@ export default function ProfileSiKecil({ navigation, route }) {
                 <Icon type="ionicon" name="calendar-sharp" size={20} />
                 <Text style={styles.birthText}>{moment(anak.tanggal_lahir).format('DD/MM/YYYY')}</Text>
               </View>
-              <Text style={styles.ageText}>{anak.usia || '00 thn / 00 bln / 00 hr'}</Text>
+              <Text style={styles.ageText}>{getUsia()}</Text>
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -163,6 +184,7 @@ export default function ProfileSiKecil({ navigation, route }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   imageBox: {

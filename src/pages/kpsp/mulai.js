@@ -86,6 +86,18 @@ onPress={() =>
 >
             <Text style={styles.mulaiButtonText}>Mulai</Text>
           </TouchableOpacity>
+          {/* {selectedAnak && selectedAnak.usia_bulan % 3 !== 0 && (
+  <Text style={{
+    fontSize: 12,
+    fontFamily: fonts.primary[400],
+    color: '#B00020',
+    marginTop: 10,
+    textAlign: 'center'
+  }}>
+    Umur si Kecil tidak tepat 3, 6, 9 dst. Gunakan KPSP kelompok umur di bawahnya.
+  </Text>
+)} */}
+
         </View>
 
         <Text style={styles.reminder}>Jawablah pertanyaan–pertanyaannya dengan <Text style={{ fontStyle: 'italic' }}>jujur</Text> ya parents.</Text>

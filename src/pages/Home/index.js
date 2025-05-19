@@ -7,18 +7,25 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
-  Modal
+  Modal,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { getData, storeData, pushNotif,  } from '../../utils/localStorage';
 import { colors, fonts } from '../../utils';
 import moment from 'moment';
+import { useFocusEffect } from '@react-navigation/native';
 
-export default function Home({ navigation }) {
+export default function Home({ navigation, route }) {
   const [user, setUser] = useState({});
   const [anak, setAnak] = useState([]);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showKpspAlert, setShowKpspAlert] = useState(false);
   const [showKpspThanks, setShowKpspThanks] = useState(false);
+  const [showAnakThanks, setShowAnakThanks] = useState(false);
+  const [addedTime, setAddedTime] = useState(moment());
+
+  
+
 
   const getIconBintang = (status) => {
     switch (status) {
@@ -32,6 +39,9 @@ export default function Home({ navigation }) {
         return require('../../assets/bintang-abu.png');
     }
   };
+
+  const [lastKpspTime, setLastKpspTime] = useState(null);
+
 
 useEffect(() => {
   const checkNotif = async () => {
@@ -60,23 +70,19 @@ useEffect(() => {
   checkNotif();
 }, []);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      const showThanks = navigation.getState()?.routes?.find(r => r.name === 'MainApp')?.params?.showKpspThanks;
-      if (showThanks) {
-        setShowKpspThanks(true);
-        navigation.setParams({ showKpspThanks: false });
-      }
-    });
-    return unsubscribe;
-  }, [navigation]);
 
-  useEffect(() => {
-    getData('user').then(setUser);
-    getData('anak').then(async (a) => {
-      if (a) {
-        const updated = await Promise.all(
-          a.map(async item => {
+useFocusEffect(
+  React.useCallback(() => {
+    const refreshData = async () => {
+      const userData = await getData('user');
+      setUser(userData);
+
+      const anakData = await getData('anak');
+      let updated = [];
+
+      if (anakData && anakData.length > 0) {
+        updated = await Promise.all(
+          anakData.map(async item => {
             const birthDate = moment(item.tanggal_lahir);
             const now = moment();
             const years = now.diff(birthDate, 'years');
@@ -93,19 +99,80 @@ useEffect(() => {
             };
           })
         );
+
         setAnak(updated);
       } else {
         setAnak([]);
       }
-    });
+
+      // Cek modal showKpspThanks
+      const flag = await getData('kpsp_thanks_pending');
+      if (flag === 'true') {
+        const timestamps = updated
+          .map(a => a.tanggalKPSP)
+          .filter(Boolean)
+          .map(t => moment(t, 'YYYY-MM-DD HH:mm').toDate().getTime());
+
+        if (timestamps.length > 0) {
+          const latestTimestamp = new Date(Math.max(...timestamps));
+          setLastKpspTime(moment(latestTimestamp));
+        }
+
+        setShowKpspThanks(true);
+        await storeData('kpsp_thanks_pending', 'false');
+      }
+
+
+const anakSuccessFlag = await getData('anak_success_pending');
+if (anakSuccessFlag === 'true') {
+  setShowAnakThanks(true); // state baru untuk modal
+  setAddedTime(moment());
+  await storeData('anak_success_pending', 'false');
+}
+
+    };
+
+    refreshData();
+  }, [])
+);
+
+
+
+  // useEffect(() => {
+  //   getData('user').then(setUser);
+  //   getData('anak').then(async (a) => {
+  //     if (a) {
+  //       const updated = await Promise.all(
+  //         a.map(async item => {
+  //           const birthDate = moment(item.tanggal_lahir);
+  //           const now = moment();
+  //           const years = now.diff(birthDate, 'years');
+  //           const months = now.diff(birthDate.clone().add(years, 'years'), 'months');
+  //           const days = now.diff(birthDate.clone().add(years, 'years').add(months, 'months'), 'days');
+
+  //           const kpspData = await getData(`kpsp_${item.id}`);
+  //           return {
+  //             ...item,
+  //             usia: `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`,
+  //             statusKPSP: kpspData?.status || null,
+  //             tanggalKPSP: kpspData?.tanggal || null,
+  //             waktuKPSP: kpspData?.waktu || null,
+  //           };
+  //         })
+  //       );
+  //       setAnak(updated);
+  //     } else {
+  //       setAnak([]);
+  //     }
+  //   });
 
 
     
 
-    getData('welcome_shown').then(value => {
-      if (value !== 'true') setShowWelcome(true);
-    });
-  }, []);
+  //   getData('welcome_shown').then(value => {
+  //     if (value !== 'true') setShowWelcome(true);
+  //   });
+  // }, []);
 
   const getUsername = (email) => {
     if (!email) return 'User';
@@ -138,10 +205,15 @@ useEffect(() => {
     <View style={{ flex: 1, backgroundColor: colors.secondary }}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Image source={require('../../assets/user.png')} style={styles.avatar} />
+   <TouchableWithoutFeedback onPress={() => navigation.navigate("Account")}>
+          <Image
+  source={user?.foto?.uri ? { uri: user.foto.uri } : require('../../assets/user.png')}
+  style={styles.avatar}
+/>
+   </TouchableWithoutFeedback>
           <View>
             <Text style={styles.hallo}>Hallo ,</Text>
-            <Text style={styles.nama}>{getUsername(user?.email)}</Text>
+     <Text style={styles.nama}>{user?.nama || 'User'}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate("Notifikasi")} style={styles.notifButton}>
             <Image source={require('../../assets/bell.png')} style={styles.bell} />
@@ -288,26 +360,59 @@ useEffect(() => {
         </View>
       </Modal>
 
-      {/* Modal Terima Kasih */}
-      <Modal visible={showKpspThanks} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={[styles.modalTitle, { textAlign: 'center' }]}>
-              Terima kasih, Parents!
-            </Text>
-            <Text style={[styles.modalMessage, { textAlign: 'center' }]}>
-              Sudah menyediakan waktunya untuk melakukan skrining dengan KPSP 💜
-            </Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => setShowKpspThanks(false)}>
-              <Text style={styles.modalButtonText}>OK</Text>
-            </TouchableOpacity>
-            <View style={styles.modalFooter}>
-              <Text style={styles.modalFooterText}>{dateStr}</Text>
-              <Text style={styles.modalFooterText}>{timeStr}</Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
+  <Modal visible={showKpspThanks} transparent animationType="fade">
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalBox}>
+      
+      <Text style={styles.modalTitle}>KPSP sudah terisi</Text>
+
+      <Text style={styles.modalMessage}>
+        Terimakasih parents sudah menyediakan waktunya untuk melakukan skrining dengan KPSP
+      </Text>
+
+      <TouchableOpacity
+        style={styles.modalButton}
+        onPress={() => setShowKpspThanks(false)}
+      >
+        <Text style={styles.modalButtonText}>OK</Text>
+      </TouchableOpacity>
+
+      {/* Waktu muncul di sini */}
+      <View style={styles.modalFooter}>
+        <Text style={styles.modalFooterText}>
+          {lastKpspTime ? lastKpspTime.format('DD/MM/YYYY') : '-'}
+        </Text>
+        <Text style={styles.modalFooterText}>
+          {lastKpspTime ? lastKpspTime.format('HH:mm') + ' WIB' : '-'}
+        </Text>
+      </View>
+
+    </View>
+  </View>
+</Modal>
+
+
+<Modal visible={showAnakThanks} transparent animationType="fade">
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalBox}>
+      <Text style={styles.modalTitle}>Ayo mulai skrining dengan KPSP</Text>
+      <Text style={styles.modalMessage}>
+        Profil si kecil sudah, yuk kita mulai skrining si kecil
+      </Text>
+      <TouchableOpacity
+        style={styles.modalButton}
+        onPress={() => setShowAnakThanks(false)}>
+        <Text style={styles.modalButtonText}>OK</Text>
+      </TouchableOpacity>
+      <View style={styles.modalFooter}>
+        <Text style={styles.modalFooterText}>{addedTime.format('DD/MM/YYYY')}</Text>
+        <Text style={styles.modalFooterText}>{addedTime.format('HH:mm')} WIB</Text>
+      </View>
+    </View>
+  </View>
+</Modal>
+
+
     </View>
   );
 }
