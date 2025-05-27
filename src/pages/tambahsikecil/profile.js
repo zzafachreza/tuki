@@ -1,306 +1,332 @@
-import { View, Text, ScrollView, StyleSheet, Image, TouchableOpacity, Alert, TextInput } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { colors, fonts } from '../../utils';
-import { MyHeader, MyCalendar } from '../../components';
-import { getData, storeData } from '../../utils/localStorage';
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Image
+} from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { colors, fonts, windowWidth } from '../../utils';
+import MyInput from '../../components/MyInput';
+import MyHeader from '../../components/MyHeader';
+import { apiURL, getData, MYAPP, storeData } from '../../utils/localStorage';
+import { MyButton, MyCalendar, MyGap } from '../../components';
 import moment from 'moment';
-import { Icon } from 'react-native-elements';
+import { showMessage } from 'react-native-flash-message';
+import axios from 'axios';
+import { useEffect } from 'react';
 
 export default function ProfileSiKecil({ navigation, route }) {
-  const [anak, setAnak] = useState(null);
-  const [index, setIndex] = useState(0);
-  const [edit, setEdit] = useState(false);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(route.params);
+
+  const [umur, setUmur] = useState('');
+
+  const getUmurDalamBulan = (val) => {
+    const lahir = moment(val);
+    const sekarang = moment();
+
+    const bulan = sekarang.diff(lahir, 'months');
+    const tanggalSetelahBulan = lahir.clone().add(bulan, 'months');
+    const hari = sekarang.diff(tanggalSetelahBulan, 'days');
+
+    return `${bulan} bulan ${hari} hari`;
+  }
+
+  const [user, setUser] = useState({});
 
   useEffect(() => {
-    getData('anak').then(res => {
-      if (res) {
-        const idx = route?.params?.index ?? 0;
-        const selectedAnak = res[idx];
-
-        setAnak(selectedAnak);
-        setForm(selectedAnak);
-        setIndex(idx);
-      }
-    });
+    getData('user').then(res => {
+      setUser(res);
+      setForm({
+        ...form,
+        fid_pengguna: res.id_pengguna,
+        newfoto_anak: null,
+      })
+    })
   }, []);
 
-  const hapusProfil = () => {
-    Alert.alert('Konfirmasi', 'Yakin ingin menghapus profil ini?', [
-      { text: 'Batal', style: 'cancel' },
+  const HapusAnak = () => {
+    Alert.alert(MYAPP, 'Apakah kamu yakin akan hapus ini ?', [
+      { text: 'Tidak' },
       {
-        text: 'Hapus',
-        onPress: async () => {
-          const data = await getData('anak');
-          const updated = data.filter((_, i) => i !== index);
-          await storeData('anak', updated);
-          navigation.replace('MainApp');
-        },
-        style: 'destructive',
-      },
-    ]);
-  };
+        text: 'HAPUS',
+        onPress: () => {
+          console.log(form.id_anak);
+          axios.post(apiURL + 'hapus_anak', {
+            id_anak: form.id_anak
+          }).then(res => {
+            if (res.data.status == 200) {
+              showMessage({
+                type: 'success',
+                message: res.data.message
+              });
+              navigation.goBack();
+            }
+          })
+        }
+      }
+    ])
+  }
 
-  const simpanPerubahan = async () => {
-    const now = moment();
-    let birthDate = moment(form.tanggal_lahir);
 
-    if (form.prematur === 'Ya' && form.minggu_kelahiran) {
-      const koreksiHari = (40 - parseInt(form.minggu_kelahiran)) * 7;
-      birthDate = birthDate.add(koreksiHari, 'days');
+
+  const simpanData = () => {
+
+    if (form.nama_anak.length == 0) {
+      showMessage({ message: 'Nama lengkap wajib diisi !' })
+    } else if (form.prematur.length == 0) {
+      showMessage({ message: 'pilih pematur !' })
+    }
+    else if (form.berat.length == 0) {
+      showMessage({ message: 'Berat badan wajib diisi !' })
+    } else if (form.tinggi.length == 0) {
+      showMessage({ message: 'Tinggi badan wajib diisi !' })
+    } else if (form.kepala.length == 0) {
+      showMessage({ message: 'Lingkar kepala wajib diisi !' })
+    } else if (form.lengan.length == 0) {
+      showMessage({ message: 'Lingkar lengan wajib diisi !' })
+    } else {
+      console.log(form);
+      axios.post(apiURL + 'update_anak', form).then(res => {
+        console.log(res.data);
+        if (res.data.status == 200) {
+          showMessage({
+            type: 'success',
+            message: res.data.message
+          });
+          navigation.goBack();
+        }
+      })
+
     }
 
-    const usia = moment.duration(now.diff(birthDate));
-const years = now.diff(birthDate, 'years');
-const months = now.diff(birthDate.clone().add(years, 'years'), 'months');
-const days = now.diff(birthDate.clone().add(years, 'years').add(months, 'months'), 'days');
-    const usiaFormatted = `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`;
 
-    const updatedForm = {
-      ...form,
-      tanggal_update: moment().format('YYYY-MM-DD'),
-      usia: usiaFormatted,
-    };
+  }
 
-    const data = await getData('anak');
-    const updated = [...data];
-    updated[index] = updatedForm;
-    await storeData('anak', updated);
-    setAnak(updatedForm);
-    setEdit(false);
-  };
-
-  if (!anak) return null;
-
-  const iconGender = anak.jenis_kelamin === 'Laki-Laki' ? 'male-sharp' : 'female-sharp';
-  const colorGender = anak.jenis_kelamin === 'Laki-Laki' ? '#4287f5' : '#DA506F';
-
-  const getUsia = () => {
-    let birthDate = moment(anak.tanggal_lahir);
-    const now = moment();
-    if (anak.prematur === 'Ya' && anak.minggu_kelahiran) {
-      const koreksiHari = (40 - parseInt(anak.minggu_kelahiran)) * 7;
-      birthDate = birthDate.add(koreksiHari, 'days');
-    }
-    const usia = moment.duration(now.diff(birthDate));
-   const years = now.diff(birthDate, 'years');
-const months = now.diff(birthDate.clone().add(years, 'years'), 'months');
-const days = now.diff(birthDate.clone().add(years, 'years').add(months, 'months'), 'days');
-return `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`;
-
+  const pilihFoto = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.5, includeBase64: true }, res => {
+      if (!res.didCancel && res.assets) {
+        setForm({ ...form, newfoto_anak: `data:${res.assets[0].type};base64,${res.assets[0].base64}` });
+      }
+    });
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.secondary }}>
-      <MyHeader title={edit ? 'Edit Profil Si Kecil' : 'Profil Si Kecil'} />
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <TouchableOpacity style={styles.imageBox}>
-          <Image
-            source={anak?.foto ? { uri: anak.foto.uri } : require('../../assets/anak.png')}
-            style={styles.image}
+      <MyHeader title="Profil Si Kecil" />
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.imageUpload} onPress={pilihFoto}>
+
+            <Image source={{ uri: form.newfoto_anak !== null ? form.newfoto_anak : form.foto_anak }} style={styles.fotoAnak} />
+
+
+          </TouchableOpacity>
+
+          <MyInput
+            label="Nama Lengkap"
+            placeholder="Nama Lengkap"
+            value={form.nama_anak}
+            onChangeText={(val) => setForm({ ...form, nama_anak: val })}
           />
-        </TouchableOpacity>
 
-        {edit ? (
-          <View style={styles.editCard}>
-            <TextInput value={form.nama} onChangeText={(val) => setForm({ ...form, nama: val })} placeholder="Nama Lengkap" style={styles.input} />
-
-            <Text style={styles.label}>Jenis Kelamin</Text>
-            <View style={styles.radioGroup}>
-              <TouchableOpacity onPress={() => setForm({ ...form, jenis_kelamin: 'Perempuan' })} style={styles.radioOption}>
-                <View style={[styles.radioCircle, form.jenis_kelamin === 'Perempuan' && styles.radioSelected]} />
-                <Text style={styles.radioLabel}>Perempuan</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setForm({ ...form, jenis_kelamin: 'Laki-Laki' })} style={styles.radioOption}>
-                <View style={[styles.radioCircle, form.jenis_kelamin === 'Laki-Laki' && styles.radioSelected]} />
-                <Text style={styles.radioLabel}>Laki–Laki</Text>
-              </TouchableOpacity>
-            </View>
-
-            <MyCalendar
-              label="Tanggal Lahir"
-              value={form.tanggal_lahir}
-              onDateChange={(val) => setForm({ ...form, tanggal_lahir: val })}
-            />
-
-            <Text style={styles.label}>Apakah Si Kecil lahir prematur?</Text>
-            <View style={styles.radioGroup}>
-              <TouchableOpacity onPress={() => setForm({ ...form, prematur: 'Ya' })} style={styles.radioOption}>
-                <View style={[styles.radioCircle, form.prematur === 'Ya' && styles.radioSelected]} />
-                <Text style={styles.radioLabel}>Ya</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setForm({ ...form, prematur: 'Tidak' })} style={styles.radioOption}>
-                <View style={[styles.radioCircle, form.prematur === 'Tidak' && styles.radioSelected]} />
-                <Text style={styles.radioLabel}>Tidak</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TextInput placeholder="Berat Badan saat ini/terakhir (kg)" keyboardType="numeric" value={form.bb} onChangeText={(val) => setForm({ ...form, bb: val })} style={styles.input} />
-            <TextInput placeholder="Tinggi Badan saat ini/terakhir (cm)" keyboardType="numeric" value={form.tb} onChangeText={(val) => setForm({ ...form, tb: val })} style={styles.input} />
-            <TextInput placeholder="Lingkar Kepala saat ini/terakhir (cm)" keyboardType="numeric" value={form.lk} onChangeText={(val) => setForm({ ...form, lk: val })} style={styles.input} />
-            <TextInput placeholder="Lingkar Lengan Atas saat ini/terakhir (cm)" keyboardType="numeric" value={form.lla} onChangeText={(val) => setForm({ ...form, lla: val })} style={styles.input} />
-
-            <TouchableOpacity style={styles.saveBtn} onPress={simpanPerubahan}>
-              <Text style={styles.saveText}>Simpan</Text>
+          <Text style={styles.label}>Jenis Kelamin</Text>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.radio, { marginRight: 20 }]}
+              onPress={() => setForm({ ...form, jenis_kelamin: 'Perempuan' })}>
+              <View
+                style={[
+                  styles.radioOuter,
+                  form.jenis_kelamin === 'Perempuan' && styles.radioActive,
+                ]}
+              />
+              <Text style={styles.radioLabel}>Perempuan</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setEdit(false)} style={{ marginTop: 10 }}>
-              <Text style={{ textAlign: 'center', fontFamily: fonts.primary[600], color: '#555' }}>Kembali</Text>
+
+            <TouchableOpacity
+              style={styles.radio}
+              onPress={() => setForm({ ...form, jenis_kelamin: 'Laki-Laki' })}>
+              <View
+                style={[
+                  styles.radioOuter,
+                  form.jenis_kelamin === 'Laki-Laki' && styles.radioActive,
+                ]}
+              />
+              <Text style={styles.radioLabel}>Laki-Laki</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <View>
-            <View style={styles.infoBox}>
-              <Icon type="ionicon" name={iconGender} size={20} color={colorGender} style={{ marginRight: 10 }} />
-              <Text style={styles.genderText}>{anak.nama}</Text>
-            </View>
 
-            <View style={styles.birthBox}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon type="ionicon" name="calendar-sharp" size={20} />
-                <Text style={styles.birthText}>{moment(anak.tanggal_lahir).format('DD/MM/YYYY')}</Text>
-              </View>
-              <Text style={styles.ageText}>{getUsia()}</Text>
-            </View>
+          <MyCalendar
+            label={`Tanggal Lahir ${umur.length == 0 ? '' : '( ' + umur + ' )'} `}
+            value={form.tanggal_lahir}
+            onDateChange={(val) => {
+              setForm({ ...form, tanggal_lahir: val });
+              let umr = getUmurDalamBulan(val);
+              console.log(umr);
+              setUmur(umr);
+            }}
+          />
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={styles.label}>Status Pertumbuhan</Text>
-              <TouchableOpacity onPress={() => setEdit(true)}>
-                <Icon type="ionicon" name="create-outline" size={20} color={'#999'} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.subtitle}>Terakhir diupdate {anak.tanggal_update || anak.tanggal_daftar}</Text>
 
-            <View style={styles.growthItem}><Text style={styles.itemLabel}>Berat Badan</Text><Text style={styles.itemValue}>{anak.bb} kg</Text></View>
-            <View style={styles.growthItem}><Text style={styles.itemLabel}>Panjang Badan</Text><Text style={styles.itemValue}>{anak.tb} cm</Text></View>
-            <View style={styles.growthItem}><Text style={styles.itemLabel}>LiLA</Text><Text style={styles.itemValue}>{anak.lla} cm</Text></View>
-            <View style={styles.growthItem}><Text style={styles.itemLabel}>Lingkar Kepala</Text><Text style={styles.itemValue}>{anak.lk} cm</Text></View>
+          <Text style={styles.label}>Apakah Si Kecil lahir prematur?</Text>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.radio, { marginRight: 20 }]}
+              onPress={() => setForm({ ...form, prematur: 'Ya' })}>
+              <View
+                style={[
+                  styles.radioOuter,
+                  form.prematur === 'Ya' && styles.radioActive,
+                ]}
+              />
+              <Text style={styles.radioLabel}>Ya</Text>
+            </TouchableOpacity>
 
-            <TouchableOpacity onPress={hapusProfil} style={{ marginTop: 20 }}>
-              <Text style={{ color: 'red', textAlign: 'center', fontFamily: fonts.primary[600] }}>Hapus Profil</Text>
+            <TouchableOpacity
+              style={styles.radio}
+              onPress={() => setForm({ ...form, prematur: 'Tidak' })}>
+              <View
+                style={[
+                  styles.radioOuter,
+                  form.prematur === 'Tidak' && styles.radioActive,
+                ]}
+              />
+              <Text style={styles.radioLabel}>Tidak</Text>
             </TouchableOpacity>
           </View>
-        )}
+
+          <MyInput
+            label="Berat Badan saat ini/terakhir (kg)"
+            placeholder="Berat Badan saat ini/terakhir (kg)"
+            value={form.berat}
+            onChangeText={(val) => setForm({ ...form, berat: val })}
+            keyboardType="numeric"
+          />
+
+          <MyInput
+            label="Tinggi Badan saat ini/terakhir (cm)"
+            placeholder="Tinggi Badan saat ini/terakhir (cm)"
+            value={form.tinggi}
+            onChangeText={(val) => setForm({ ...form, tinggi: val })}
+            keyboardType="numeric"
+          />
+
+          <MyInput
+            label="Lingkar Kepala saat ini/terakhir (cm)"
+            placeholder="Lingkar Kepala saat ini/terakhir (cm)"
+            value={form.kepala}
+            onChangeText={(val) => setForm({ ...form, kepala: val })}
+            keyboardType="numeric"
+          />
+
+          <MyInput
+            label="Lingkar Lengan Atas saat ini/terakhir (cm)"
+            placeholder="Lingkar Lengan Atas saat ini/terakhir (cm)"
+            value={form.lengan}
+            onChangeText={(val) => setForm({ ...form, lengan: val })}
+            keyboardType="numeric"
+          />
+
+          <TouchableOpacity
+            onPress={simpanData}
+
+            style={[
+              styles.btnSimpan,
+              {
+                backgroundColor: '#9C42C4'
+              },
+            ]}>
+            <Text style={styles.btnText}>Simpan Perubahan</Text>
+          </TouchableOpacity>
+          <MyGap jarak={10} />
+          <MyButton onPress={HapusAnak} title="Hapus Si Kecil" />
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-
 const styles = StyleSheet.create({
-  imageBox: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  image: {
-    width: '100%',
-    height: 160,
-    borderRadius: 12,
-  },
-  input: {
-    backgroundColor: colors.white,
-    padding: 14,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginBottom: 12,
-    fontFamily: fonts.primary[400]
-  },
-  editCard: {
+  container: { padding: 16 },
+  card: {
     backgroundColor: '#EADCF1',
-    borderRadius: 20,
     padding: 20,
-    elevation: 3,
+    borderRadius: 20,
+    marginTop: 20,
+    elevation: 4,
   },
-  radioGroup: {
+  imageUpload: {
+    width: '100%',
+    // height: 180,
+    height: windowWidth / 1.2,
+    backgroundColor: '#D9D9D9',
+    borderRadius: 10,
+    marginBottom: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  fotoAnak: {
+    width: windowWidth / 1.2,
+    height: windowWidth / 1.2,
+    resizeMode: 'cover',
+  },
+  plusBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  label: {
+    fontFamily: fonts.primary[600],
+    fontSize: 14,
+    color: '#2D2D2D',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  row: {
     flexDirection: 'row',
     marginBottom: 12,
+    alignItems: 'center',
   },
-  radioOption: {
+  radio: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
   },
-  radioCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  radioOuter: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 2,
-    borderColor: '#333',
+    borderColor: '#2D2D2D',
     marginRight: 8,
   },
-  radioSelected: {
-    backgroundColor: '#333'
+  radioActive: {
+    backgroundColor: '#2D2D2D',
   },
   radioLabel: {
     fontFamily: fonts.primary[400],
     fontSize: 14,
+    color: '#2D2D2D',
   },
-  saveBtn: {
-    backgroundColor: '#999',
+  btnSimpan: {
     padding: 14,
-    borderRadius: 30,
-    alignItems: 'center'
+    borderRadius: 50,
+    marginTop: 20,
+    alignItems: 'center',
+    elevation: 3,
   },
-  saveText: {
+  btnText: {
     fontFamily: fonts.primary[700],
-    color: 'white'
-  },
-  infoBox: {
-    backgroundColor: '#EADCF1',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  genderText: {
-    fontFamily: fonts.primary[700],
-    fontSize: 16,
-  },
-  birthBox: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  birthText: {
-    fontFamily: fonts.primary[400],
     fontSize: 14,
-    marginHorizontal: 10,
-    top: 2
-  },
-  ageText: {
-    fontFamily: fonts.primary[600],
-    fontSize: 14,
-    top: 2
-  },
-  label: {
-    fontFamily: fonts.primary[700],
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontFamily: fonts.primary[400],
-    fontSize: 12,
-    marginBottom: 12,
-    color: '#777'
-  },
-  growthItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: '#ccc'
-  },
-  itemLabel: {
-    fontFamily: fonts.primary[400],
-    fontSize: 14,
-  },
-  itemValue: {
-    fontFamily: fonts.primary[600],
-    fontSize: 14,
+    color: 'white',
   },
 });

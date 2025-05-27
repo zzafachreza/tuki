@@ -10,10 +10,14 @@ import {
   Modal,
   TouchableWithoutFeedback
 } from 'react-native';
-import { getData, storeData, pushNotif,  } from '../../utils/localStorage';
+import { getData, storeData, pushNotif, apiURL, } from '../../utils/localStorage';
 import { colors, fonts } from '../../utils';
 import moment from 'moment';
-import { useFocusEffect } from '@react-navigation/native';
+
+import { showMessage } from 'react-native-flash-message';
+import axios from 'axios';
+import { useIsFocused } from '@react-navigation/native';
+import { Icon } from 'react-native-elements';
 
 export default function Home({ navigation, route }) {
   const [user, setUser] = useState({});
@@ -23,8 +27,6 @@ export default function Home({ navigation, route }) {
   const [showKpspThanks, setShowKpspThanks] = useState(false);
   const [showAnakThanks, setShowAnakThanks] = useState(false);
   const [addedTime, setAddedTime] = useState(moment());
-
-  
 
 
   const getIconBintang = (status) => {
@@ -43,98 +45,88 @@ export default function Home({ navigation, route }) {
   const [lastKpspTime, setLastKpspTime] = useState(null);
 
 
-useEffect(() => {
-  const checkNotif = async () => {
-    const anak = await getData('anak');
-    if (!anak || anak.length === 0) {
-      await pushNotif({
-        title: 'Profil si Kecil',
-        message: 'Halo Parents! Selamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.',
-      });
-    } else {
-      const kpspStatuses = await Promise.all(
-        anak.map(async (a) => {
-          const kpsp = await getData(`kpsp_${a.id}`);
-          return !kpsp;
-        })
-      );
-      if (kpspStatuses.includes(true)) {
-        await pushNotif({
-          title: 'Ayo mulai skrining dengan KPSP',
-          message: 'Halo Parents!\nProfil si kecil sudah, yuk kita mulai skrining si kecil',
-        });
-      }
-    }
-  };
+  // useEffect(() => {
+  //   const checkNotif = async () => {
+  //     const anak = await getData('anak');
+  //     if (!anak || anak.length === 0) {
+  //       await pushNotif({
+  //         title: 'Profil si Kecil',
+  //         message: 'Halo Parents! Selamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.',
+  //       });
+  //     } else {
+  //       const kpspStatuses = await Promise.all(
+  //         anak.map(async (a) => {
+  //           const kpsp = await getData(`kpsp_${a.id}`);
+  //           return !kpsp;
+  //         })
+  //       );
+  //       if (kpspStatuses.includes(true)) {
+  //         await pushNotif({
+  //           title: 'Ayo mulai skrining dengan KPSP',
+  //           message: 'Halo Parents!\nProfil si kecil sudah, yuk kita mulai skrining si kecil',
+  //         });
+  //       }
+  //     }
+  //   };
 
-  checkNotif();
-}, []);
+  //   checkNotif();
+  // }, []);
 
+  const isFocus = useIsFocused();
 
-useFocusEffect(
-  React.useCallback(() => {
-    const refreshData = async () => {
-      const userData = await getData('user');
-      setUser(userData);
+  const __getAnak = () => {
+    getData('user').then(u => {
 
-      const anakData = await getData('anak');
-      let updated = [];
-
-      if (anakData && anakData.length > 0) {
-        updated = await Promise.all(
-          anakData.map(async item => {
-            const birthDate = moment(item.tanggal_lahir);
-            const now = moment();
-            const years = now.diff(birthDate, 'years');
-            const months = now.diff(birthDate.clone().add(years, 'years'), 'months');
-            const days = now.diff(birthDate.clone().add(years, 'years').add(months, 'months'), 'days');
-
-            const kpspData = await getData(`kpsp_${item.id}`);
-            return {
-              ...item,
-              usia: `${years.toString().padStart(2, '0')} thn / ${months.toString().padStart(2, '0')} bln / ${days.toString().padStart(2, '0')} hr`,
-              statusKPSP: kpspData?.status || null,
-              tanggalKPSP: kpspData?.tanggal || null,
-              waktuKPSP: kpspData?.waktu || null,
-            };
+      axios.post(apiURL + 'anak', {
+        fid_pengguna: u.id_pengguna
+      }).then(res => {
+        console.log(res.data);
+        setAnak(res.data);
+        if (res.data.length == 0) {
+          getData('notifikasi').then(nn => {
+            let tmp = [...nn];
+            tmp.push({
+              title: 'Ayo mulai skrining dengan KPSP',
+              message: 'Halo Parents !\nProfil si kecil sudah, yuk kita mulai skrining si kecil',
+              timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+            });
+            storeData('notifikasi', tmp);
           })
-        );
-
-        setAnak(updated);
-      } else {
-        setAnak([]);
-      }
-
-      // Cek modal showKpspThanks
-      const flag = await getData('kpsp_thanks_pending');
-      if (flag === 'true') {
-        const timestamps = updated
-          .map(a => a.tanggalKPSP)
-          .filter(Boolean)
-          .map(t => moment(t, 'YYYY-MM-DD HH:mm').toDate().getTime());
-
-        if (timestamps.length > 0) {
-          const latestTimestamp = new Date(Math.max(...timestamps));
-          setLastKpspTime(moment(latestTimestamp));
         }
+      })
 
-        setShowKpspThanks(true);
-        await storeData('kpsp_thanks_pending', 'false');
+    })
+  }
+
+  useEffect(() => {
+    getData('baru').then(res => {
+      console.log(res);
+      if (res == 0) {
+
+        setShowWelcome(true);
+        getData('notifikasi').then(nn => {
+          let tmp = [...nn];
+          tmp.push({
+            title: 'Profil si Kecil',
+            message: 'Halo Parents !\nSelamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.',
+            timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+          });
+          storeData('notifikasi', tmp);
+        })
       }
+    })
+    getData('user').then(res => {
+      setUser(res);
+    })
+
+    if (isFocus) {
+      __NilaiWEEK();
+      __getAnak();
+    }
+  }, [isFocus])
 
 
-const anakSuccessFlag = await getData('anak_success_pending');
-if (anakSuccessFlag === 'true') {
-  setShowAnakThanks(true); // state baru untuk modal
-  setAddedTime(moment());
-  await storeData('anak_success_pending', 'false');
-}
 
-    };
-
-    refreshData();
-  }, [])
-);
 
 
 
@@ -167,32 +159,89 @@ if (anakSuccessFlag === 'true') {
   //   });
 
 
-    
+
 
   //   getData('welcome_shown').then(value => {
   //     if (value !== 'true') setShowWelcome(true);
   //   });
   // }, []);
 
-  const getUsername = (email) => {
-    if (!email) return 'User';
-    return email.split('@')[0];
+  const [week, setWeek] = useState([]);
+  const __NilaiWEEK = () => {
+    getData('user').then(u => {
+      axios.post(apiURL + 'nilai_week', {
+        fid_pengguna: u.id_pengguna
+      }).then(res => {
+        console.log(res.data);
+        setWeek(res.data);
+
+      })
+    })
+  }
+
+
+  function tampilkanWaktuTerakhir(tanggal, jam) {
+    const waktu = moment(`${tanggal} ${jam}`);
+    const sekarang = moment();
+
+    const selisihJam = sekarang.diff(waktu, 'hours');
+
+    if (selisihJam < 24) {
+      return waktu.fromNow(); // contoh: "3 jam yang lalu"
+    } else {
+      return 'Terakhir ' + waktu.format('DD MMMM YYYY'); // contoh: "Terakhir 21 Mei 2025"
+    }
+  }
+
+
+  const getUmurLengkap = (tanggalLahir) => {
+    const lahir = moment(tanggalLahir);
+    const sekarang = moment();
+
+    const tahun = sekarang.diff(lahir, 'years');
+    const sisaSetelahTahun = lahir.clone().add(tahun, 'years');
+
+    const bulan = sekarang.diff(sisaSetelahTahun, 'months');
+    const sisaSetelahBulan = sisaSetelahTahun.clone().add(bulan, 'months');
+
+    const hari = sekarang.diff(sisaSetelahBulan, 'days');
+
+    return `${tahun} thn / ${bulan} bln / ${hari} hr`;
   };
 
+  const WARNA = [
+    '#BA68C8',
+    '#F05945',
+    '#FF9800',
+    '#37BEB0',
+    // '#BDBDBD'
+  ]
   const renderAnak = ({ item, index }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('ProfileSiKecil', { index })} style={styles.childCard}>
+    <TouchableOpacity onPress={() => navigation.navigate('ProfileSiKecil', item)} style={styles.childCard}>
       <Image
-        source={item.foto?.uri ? { uri: item.foto.uri } : require('../../assets/anak.png')}
+        source={item.foto_anak ? { uri: item.foto_anak } : require('../../assets/anak.png')}
         style={styles.childPhoto}
       />
       <View style={{ padding: 10 }}>
-        <Image
-          source={getIconBintang(item.statusKPSP)}
-          style={{ width: 20, height: 20, position: 'absolute', top: 8, right: 8, zIndex: 10 }}
-        />
-        <Text style={styles.childName}>{item.nama}</Text>
-        <Text style={styles.childText}>{item.usia}</Text>
-        <Text style={styles.childText}>⚖️ {item.bb} kg   📏 {item.tb} cm</Text>
+        <View style={{
+          flexDirection: 'row',
+          // alignItems: 'center',
+        }}>
+          <Text style={{
+            ...styles.childText,
+            fontWeight: 'bold',
+            flex: 1,
+          }}>{item.nama_anak}</Text>
+          <View style={{
+            width: 20,
+            height: 20,
+          }}>
+            <Icon type='ionicon' name='star' color={WARNA[item.status_anak]} size={17} />
+          </View>
+
+        </View>
+        <Text style={styles.childText}>{getUmurLengkap(item.tanggal_lahir)}</Text>
+        <Text style={styles.childText}>⚖️ {item.berat} kg   📏 {item.tinggi} cm</Text>
       </View>
     </TouchableOpacity>
   );
@@ -205,15 +254,15 @@ if (anakSuccessFlag === 'true') {
     <View style={{ flex: 1, backgroundColor: colors.secondary }}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-   <TouchableWithoutFeedback onPress={() => navigation.navigate("Account")}>
-          <Image
-  source={user?.foto?.uri ? { uri: user.foto.uri } : require('../../assets/user.png')}
-  style={styles.avatar}
-/>
-   </TouchableWithoutFeedback>
+          <TouchableWithoutFeedback onPress={() => navigation.navigate("Account")}>
+            <Image
+              source={user?.foto_user ? { uri: user.foto_user } : require('../../assets/user.png')}
+              style={styles.avatar}
+            />
+          </TouchableWithoutFeedback>
           <View>
             <Text style={styles.hallo}>Hallo ,</Text>
-     <Text style={styles.nama}>{user?.nama || 'User'}</Text>
+            <Text style={styles.nama}>{user?.nama || 'User'}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate("Notifikasi")} style={styles.notifButton}>
             <Image source={require('../../assets/bell.png')} style={styles.bell} />
@@ -244,14 +293,21 @@ if (anakSuccessFlag === 'true') {
               <Text style={[styles.kpspTitle, anak.length === 0 && { color: colors.black }]}>KPSP</Text>
               <Text style={[styles.kpspSubtitle, anak.length === 0 && { color: '#A29CB6' }]}>Keusioner Pra Skrining Perkembangan</Text>
               <Text style={[styles.kpspStatus, anak.length === 0 && { color: '#A29CB6' }]}>
-                {anak.length === 0
+                {/* {anak.length === 0
                   ? 'Tambahkan profil si Kecil terlebih dahulu'
-                  : anak.some(a => a.tanggalKPSP)
-                    ? `Terakhir ${moment(Math.max(...anak
-                        .filter(a => a.tanggalKPSP)
-                        .map(a => moment(a.tanggalKPSP, 'YYYY-MM-DD HH:mm').toDate().getTime())))
-                        .format('DD/MM/YYYY')}`
-                    : 'Belum Mulai'}
+                  : week.some(a => a.tanggal)
+                    ? `Terakhir ${moment(Math.max(...week
+                      .filter(a => a.tanggal)
+                      .map(a => moment(a.tanggal + ' ' + a.jam, 'YYYY-MM-DD HH:mm').toDate().getTime())))
+                      .format('DD/MM/YYYY')}`
+                    : 'Belum Mulai'} */}
+
+                {anak.length === 0 && 'Tambahkan profil si Kecil terlebih dahulu'}
+                {week.length === 0 && 'Belum Mulai'}
+                {anak.length > 0 && week.length > 0 &&
+
+                  tampilkanWaktuTerakhir(week[0].tanggal, week[0].jam)
+                }
               </Text>
             </View>
             <View style={{ justifyContent: 'space-between' }}>
@@ -266,61 +322,57 @@ if (anakSuccessFlag === 'true') {
                 style={[styles.mulaiBtn, anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#FFA500' }]}>
                 <Text style={[styles.mulaiText, anak.length === 0 && { color: 'white' }]}>Mulai</Text>
               </TouchableOpacity>
-            <TouchableOpacity
-  onPress={() => {
-    if (anak.length === 0) {
-      setShowKpspAlert(true);
-    } else {
-      navigation.navigate('RiwayatKPSP');
-    }
-  }}
-  style={[
-    styles.riwayatBtn,
-    anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#ccc' }
-  ]}
->
-  <Text style={[
-    styles.riwayatText,
-    anak.length === 0 && { color: 'white' }
-  ]}>
-    Riwayat
-  </Text>
-</TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (anak.length === 0) {
+                    setShowKpspAlert(true);
+                  } else {
+                    navigation.navigate('RiwayatKPSP');
+                  }
+                }}
+                style={[
+                  styles.riwayatBtn,
+                  anak.length === 0 ? { backgroundColor: '#333' } : { backgroundColor: '#ccc' }
+                ]}
+              >
+                <Text style={[
+                  styles.riwayatText,
+                  anak.length === 0 && { color: 'white' }
+                ]}>
+                  Riwayat
+                </Text>
+              </TouchableOpacity>
 
             </View>
           </View>
         </View>
 
         {/* 🟩 Riwayat KPSP */}
-        {anak
-          .filter(a => a.statusKPSP && a.tanggalKPSP)
-          .map((a, i) => {
-            let bgColor = '#ccc';
-            if (a.statusKPSP === 'Sesuai Umur') bgColor = '#DDFBE8';
-            else if (a.statusKPSP === 'Meragukan') bgColor = '#FFF7DB';
-            else if (a.statusKPSP === 'Ada Kemungkinan Penyimpangan') bgColor = '#FFE5E5';
+        {week.length > 0 &&
 
+          <FlatList data={week} renderItem={({ item, index }) => {
             return (
-              <View key={i} style={{
-                backgroundColor: bgColor,
+              <View key={index} style={{
+                backgroundColor: item.warna,
                 marginTop: 16,
                 borderRadius: 10,
                 padding: 16,
                 marginHorizontal: 20,
                 borderWidth: 1,
                 borderColor: '#ccc',
-                width:"100%",
-                right:20
+                width: "100%",
+                right: 20
               }}>
                 <Text style={{ fontFamily: fonts.primary[700], fontSize: 16, color: '#333' }}>
-                  {a.nama}, {a.statusKPSP}
+                  {item.nama_anak}, {item.hasil}
                 </Text>
                 <Text style={{ fontFamily: fonts.primary[400], fontSize: 12, color: '#666', marginTop: 4 }}>
-                  {moment(a.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('DD/MM/YYYY')} {moment(a.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('HH:mm')} WIB
+                  {moment(item.tanggal + ' ' + item.jam, 'YYYY-MM-DD HH:mm').format('DD/MM/YYYY')} {moment(item.tanggal + ' ' + item.jam, 'YYYY-MM-DD HH:mm').format('HH:mm')} WIB
                 </Text>
               </View>
-            );
-          })}
+            )
+          }} />
+        }
 
       </ScrollView>
 
@@ -333,7 +385,7 @@ if (anakSuccessFlag === 'true') {
               Halo Parents !{"\n"}
               Selamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.
             </Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => { storeData('welcome_shown', 'true'); setShowWelcome(false); }}>
+            <TouchableOpacity style={styles.modalButton} onPress={() => { storeData('baru', 1); setShowWelcome(false); }}>
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
             <View style={styles.modalFooter}>
@@ -360,57 +412,57 @@ if (anakSuccessFlag === 'true') {
         </View>
       </Modal>
 
-  <Modal visible={showKpspThanks} transparent animationType="fade">
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalBox}>
-      
-      <Text style={styles.modalTitle}>KPSP sudah terisi</Text>
+      <Modal visible={showKpspThanks} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
 
-      <Text style={styles.modalMessage}>
-        Terimakasih parents sudah menyediakan waktunya untuk melakukan skrining dengan KPSP
-      </Text>
+            <Text style={styles.modalTitle}>KPSP sudah terisi</Text>
 
-      <TouchableOpacity
-        style={styles.modalButton}
-        onPress={() => setShowKpspThanks(false)}
-      >
-        <Text style={styles.modalButtonText}>OK</Text>
-      </TouchableOpacity>
+            <Text style={styles.modalMessage}>
+              Terimakasih parents sudah menyediakan waktunya untuk melakukan skrining dengan KPSP
+            </Text>
 
-      {/* Waktu muncul di sini */}
-      <View style={styles.modalFooter}>
-        <Text style={styles.modalFooterText}>
-          {lastKpspTime ? lastKpspTime.format('DD/MM/YYYY') : '-'}
-        </Text>
-        <Text style={styles.modalFooterText}>
-          {lastKpspTime ? lastKpspTime.format('HH:mm') + ' WIB' : '-'}
-        </Text>
-      </View>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowKpspThanks(false)}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
 
-    </View>
-  </View>
-</Modal>
+            {/* Waktu muncul di sini */}
+            <View style={styles.modalFooter}>
+              <Text style={styles.modalFooterText}>
+                {lastKpspTime ? lastKpspTime.format('DD/MM/YYYY') : '-'}
+              </Text>
+              <Text style={styles.modalFooterText}>
+                {lastKpspTime ? lastKpspTime.format('HH:mm') + ' WIB' : '-'}
+              </Text>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
 
 
-<Modal visible={showAnakThanks} transparent animationType="fade">
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalBox}>
-      <Text style={styles.modalTitle}>Ayo mulai skrining dengan KPSP</Text>
-      <Text style={styles.modalMessage}>
-        Profil si kecil sudah, yuk kita mulai skrining si kecil
-      </Text>
-      <TouchableOpacity
-        style={styles.modalButton}
-        onPress={() => setShowAnakThanks(false)}>
-        <Text style={styles.modalButtonText}>OK</Text>
-      </TouchableOpacity>
-      <View style={styles.modalFooter}>
-        <Text style={styles.modalFooterText}>{addedTime.format('DD/MM/YYYY')}</Text>
-        <Text style={styles.modalFooterText}>{addedTime.format('HH:mm')} WIB</Text>
-      </View>
-    </View>
-  </View>
-</Modal>
+      <Modal visible={showAnakThanks} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Ayo mulai skrining dengan KPSP</Text>
+            <Text style={styles.modalMessage}>
+              Profil si kecil sudah, yuk kita mulai skrining si kecil
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowAnakThanks(false)}>
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+            <View style={styles.modalFooter}>
+              <Text style={styles.modalFooterText}>{addedTime.format('DD/MM/YYYY')}</Text>
+              <Text style={styles.modalFooterText}>{addedTime.format('HH:mm')} WIB</Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
 
     </View>
@@ -423,20 +475,20 @@ const styles = StyleSheet.create({
   hallo: { fontFamily: fonts.primary[400], fontSize: 16, color: colors.black },
   nama: { fontFamily: fonts.primary[600], fontSize: 15, color: colors.black, marginTop: -5 },
   avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
-  notifButton: { marginLeft: 'auto', backgroundColor: 'white', borderRadius: 20, padding: 8,  },
+  notifButton: { marginLeft: 'auto', backgroundColor: 'white', borderRadius: 20, padding: 8, },
   bell: { width: 20, height: 20 },
   label: { fontFamily: fonts.primary[700], fontSize: 16, marginBottom: 10 },
   childRow: { flexDirection: 'row', alignItems: 'center' },
   childCard: { backgroundColor: '#f4e9f9', borderRadius: 15, width: 180, overflow: 'hidden', borderWidth: 1, borderColor: '#ccc', marginRight: 15, },
-  childPhoto: { width: '100%', height: 100 },
+  childPhoto: { width: '100%', height: 180 },
   childTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   childName: { fontFamily: fonts.primary[700], fontSize: 16, color: colors.black },
   childText: { fontFamily: fonts.primary[400], fontSize: 13, color: colors.black },
-  addCard: { backgroundColor: '#ddd', width: 100, height: 130, borderRadius: 15, justifyContent: 'center', alignItems: 'center',  },
+  addCard: { backgroundColor: '#ddd', width: 100, height: 180, borderRadius: 15, justifyContent: 'center', alignItems: 'center', },
   addText: { fontSize: 40, color: '#999' },
   section: { marginTop: 30 },
   ajakan: { fontFamily: fonts.primary[400], marginBottom: 10 },
-  kpspBox: { backgroundColor: '#f4e9f9', borderRadius: 15, padding: 20, flexDirection: 'row', justifyContent: 'space-between', borderWidth:1, borderColor: '#ccc',  },
+  kpspBox: { backgroundColor: '#f4e9f9', borderRadius: 15, padding: 20, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#ccc', },
   kpspTitle: { fontFamily: fonts.primary[800], fontSize: 16, color: colors.black },
   kpspSubtitle: { fontFamily: fonts.primary[400], color: '#888', fontSize: 13, marginTop: 2 },
   kpspStatus: { fontFamily: fonts.primary[400], color: '#444', fontSize: 12, marginTop: 10 },

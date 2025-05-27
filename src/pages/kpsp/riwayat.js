@@ -1,31 +1,26 @@
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { colors, fonts } from '../../utils';
-import { getData } from '../../utils/localStorage';
+import { apiURL, getData } from '../../utils/localStorage';
 import moment from 'moment';
 
 import { Icon } from 'react-native-elements'; // pastikan import ini ditambahkan di atas
+import { showMessage } from 'react-native-flash-message';
+import axios from 'axios';
 
 export default function RiwayatKPSP({ navigation }) {
   const [anak, setAnak] = useState([]);
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    getData('anak').then(async (a) => {
-      if (a) {
-        const updated = await Promise.all(
-          a.map(async item => {
-            const kpspData = await getData(`kpsp_${item.id}`);
-            return {
-              ...item,
-              statusKPSP: kpspData?.status || null,
-              tanggalKPSP: kpspData?.tanggal || null,
-            };
-          })
-        );
-        setAnak(updated.filter(item => item.statusKPSP && item.tanggalKPSP));
-      }
-    });
+    getData('user').then(u => {
+      axios.post(apiURL + 'nilai', {
+        fid_pengguna: u.id_pengguna
+      }).then(res => {
+        console.log(res.data);
+        setAnak(res.data);
+      })
+    })
   }, []);
 
   const getCardColor = (status) => {
@@ -72,90 +67,90 @@ export default function RiwayatKPSP({ navigation }) {
     <View style={{ flex: 1, backgroundColor: selected ? getMainColor(selected.statusKPSP) : colors.secondary }}>
       {/* Header */}
 
-<View style={{ padding: 16 }}>
-  <TouchableOpacity
-    onPress={() => {
-      if (selected) {
-        setSelected(null); 
-      } else {
-        navigation.goBack(); 
-      }
-    }}
-    style={{
-      backgroundColor: '#EADCF1',
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 50,
-      elevation: 3,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-    }}
-  >
-    <View style={{
-      backgroundColor: 'white',
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-      borderWidth: 1,
-      borderColor: '#ccc',
-    }}>
-      <Icon
-        type="ionicon"
-        name="arrow-back-outline"
-        color="#2D2D2D"
-        size={20}
-      />
-    </View>
-    <Text style={{
-      fontFamily: fonts.primary[700],
-      fontSize: 14,
-      color: '#2D2D2D',
-    }}>
-      Riwayat KPSP
-    </Text>
-  </TouchableOpacity>
-</View>
+      <View style={{ padding: 16 }}>
+        <TouchableOpacity
+          onPress={() => {
+            if (selected) {
+              setSelected(null);
+            } else {
+              navigation.goBack();
+            }
+          }}
+          style={{
+            backgroundColor: '#EADCF1',
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: 50,
+            elevation: 3,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+          }}
+        >
+          <View style={{
+            backgroundColor: 'white',
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: 12,
+            borderWidth: 1,
+            borderColor: '#ccc',
+          }}>
+            <Icon
+              type="ionicon"
+              name="arrow-back-outline"
+              color="#2D2D2D"
+              size={20}
+            />
+          </View>
+          <Text style={{
+            fontFamily: fonts.primary[700],
+            fontSize: 14,
+            color: '#2D2D2D',
+          }}>
+            Riwayat KPSP
+          </Text>
+        </TouchableOpacity>
+      </View>
 
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}>
         {/* List Card */}
-{/* Hanya tampilkan list jika belum memilih */}
-{!selected && anak.map((item, index) => (
-  <TouchableOpacity key={index} onPress={() => setSelected(item)}>
-    <View style={{
-      backgroundColor: getCardColor(item.statusKPSP),
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: "#ccc",
-    }}>
-      <Text style={{
-        fontFamily: fonts.primary[700],
-        fontSize: 16,
-        color: '#333',
-      }}>
-        {item.nama}, {item.statusKPSP}
-      </Text>
-      <Text style={{
-        fontFamily: fonts.primary[400],
-        fontSize: 12,
-        color: '#666',
-        marginTop: 4,
-      }}>
-        {moment(item.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('DD/MM/YYYY')} {' '}
-        {moment(item.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('HH:mm')} WIB
-      </Text>
-    </View>
-  </TouchableOpacity>
-))}
+        {/* Hanya tampilkan list jika belum memilih */}
+        {!selected && anak.map((item, index) => (
+          <TouchableOpacity key={index} onPress={() => setSelected(item)}>
+            <View style={{
+              backgroundColor: item.warna,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: "#ccc",
+            }}>
+              <Text style={{
+                fontFamily: fonts.primary[700],
+                fontSize: 16,
+                color: '#333',
+              }}>
+                {item.nama_anak}, {item.hasil}
+              </Text>
+              <Text style={{
+                fontFamily: fonts.primary[400],
+                fontSize: 12,
+                color: '#666',
+                marginTop: 4,
+              }}>
+                {moment(item.tanggal + ' ' + item.jam, 'YYYY-MM-DD HH:mm').format('DD/MM/YYYY')} {' '}
+                {moment(item.tanggal + ' ' + item.jam, 'YYYY-MM-DD HH:mm').format('HH:mm')} WIB
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
 
 
         {anak.length === 0 && (
@@ -174,7 +169,7 @@ export default function RiwayatKPSP({ navigation }) {
         {selected && (
           <>
             <View style={{
-              backgroundColor: getCardColor(selected.statusKPSP),
+              backgroundColor: selected.warna,
               borderRadius: 12,
               padding: 16,
               marginTop: 10,
@@ -191,20 +186,20 @@ export default function RiwayatKPSP({ navigation }) {
                 fontFamily: fonts.primary[600],
                 fontSize: 15,
                 color: '#333',
-              }}>{selected.nama}, {selected.statusKPSP}</Text>
+              }}>{selected.nama_anak}, {selected.hasil}</Text>
               <Text style={{
                 fontFamily: fonts.primary[400],
                 fontSize: 12,
-                color: '#999',
+                color: '#222',
                 marginTop: 6
               }}>
-                {moment(selected.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('DD/MM/YYYY')} {' '}
-                {moment(selected.tanggalKPSP, 'YYYY-MM-DD HH:mm').format('HH:mm')} WIB
+                {moment(selected.tanggal + ' ' + selected.jam, 'YYYY-MM-DD HH:mm').format('DD/MM/YYYY')} {' '}
+                {moment(selected.tanggal + ' ' + selected.jam, 'YYYY-MM-DD HH:mm').format('HH:mm')} WIB
               </Text>
             </View>
 
             <View style={{
-              backgroundColor: getCardColor(selected.statusKPSP),
+              backgroundColor: selected.warna,
               borderRadius: 12,
               padding: 16,
               marginTop: 16,
@@ -219,16 +214,16 @@ export default function RiwayatKPSP({ navigation }) {
                 marginBottom: 10
               }}>Apa yang dilakukan selanjutnya ?</Text>
 
-              {getSaran(selected.statusKPSP).map((item, idx) => (
-                <Text key={idx} style={{
-                  fontFamily: fonts.primary[400],
-                  fontSize: 14,
-                  color: '#222',
-                  marginBottom: 8
-                }}>
-                  {getSaran(selected.statusKPSP).length > 1 ? `${idx + 1}. ${item}` : item}
-                </Text>
-              ))}
+
+              <Text style={{
+                fontFamily: fonts.primary[400],
+                fontSize: 14,
+                color: '#222',
+                marginBottom: 8
+              }}>
+                {selected.saran}
+              </Text>
+
             </View>
           </>
         )}

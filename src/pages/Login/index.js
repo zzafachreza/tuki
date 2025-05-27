@@ -4,16 +4,21 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { colors, fonts } from '../../utils';
 import { MyInput, MyPicker } from '../../components';
 import { showMessage } from 'react-native-flash-message';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect } from 'react';
+import { apiURL, storeData } from '../../utils/localStorage';
+import { Linking } from 'react-native';
 
 export default function Login({ navigation }) {
+  const [company, setCompany] = useState({});
   const [data, setData] = useState({
     nama: '',
     kelamin: '',
     telepon: '',
     email: '',
-    provinsi: 'Jawa Barat',
-    kota: 'Bandung',
+    provinsi: 'ACEH',
+    kota: 'KABUPATEN SIMEULUE',
     password: '',
     foto: null
   });
@@ -22,17 +27,41 @@ export default function Login({ navigation }) {
   const [fadeAnim] = useState(new Animated.Value(1));
   const [errorEmail, setErrorEmail] = useState('');
 
-  const provinsiList = [
-    { label: 'Jawa Barat', value: 'Jawa Barat' },
-    { label: 'Jawa Tengah', value: 'Jawa Tengah' },
-    { label: 'Jawa Timur', value: 'Jawa Timur' },
-  ];
 
-  const kotaOptions = {
-    'Jawa Barat': [ { label: 'Bandung', value: 'Bandung' } ],
-    'Jawa Tengah': [ { label: 'Semarang', value: 'Semarang' } ],
-    'Jawa Timur': [ { label: 'Surabaya', value: 'Surabaya' } ],
-  };
+  const [provinsi, setProvinsi] = useState([]);
+  const [kota, setKota] = useState([]);
+
+  const __getProvinsi = () => {
+    axios.get('https://emsifa.github.io/api-wilayah-indonesia/api/provinces.json').then(res => {
+
+      let tmp = [];
+      res.data.map(i => {
+        tmp.push({
+          label: i.name,
+          value: i.id + '#' + i.name
+        })
+      });
+      console.log(tmp);
+      setProvinsi(tmp);
+    })
+  }
+
+
+  const __getKota = (x = 11) => {
+    axios.get(`https://emsifa.github.io/api-wilayah-indonesia/api/regencies/${x}.json`).then(res => {
+
+      let tmp = [];
+      res.data.map(i => {
+        tmp.push({
+          label: i.name,
+          value: i.name
+        })
+      });
+      console.log(tmp);
+      setKota(tmp);
+
+    })
+  }
 
   const switchTab = (mode) => {
     Animated.timing(fadeAnim, {
@@ -53,9 +82,9 @@ export default function Login({ navigation }) {
   };
 
   const pilihFoto = () => {
-    launchImageLibrary({ mediaType: 'photo', quality: 0.5 }, res => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.5, includeBase64: true }, res => {
       if (!res.didCancel && res.assets) {
-        setData({ ...data, foto: res.assets[0] });
+        setData({ ...data, foto: `data:${res.assets[0].type};base64,${res.assets[0].base64}` });
       }
     });
   };
@@ -78,20 +107,37 @@ export default function Login({ navigation }) {
       });
       return;
     }
-    try {
-      await AsyncStorage.setItem('user', JSON.stringify(data));
-      showMessage({
-        type: 'success',
-        backgroundColor: colors.success,
-        color: colors.white,
-        message: 'Berhasil Register!',
-        position: 'top',
-      });
-      setIsRegister(false);
-    } catch (err) {
-      console.log(err);
-    }
-  };
+
+
+    axios.post(apiURL + 'register', data).then(res => {
+      console.log(res.data);
+      if (res.data.status == 200) {
+        showMessage({
+          type: 'success',
+          message: res.data.message
+        });
+        setIsRegister(false)
+
+      } else {
+        showMessage({
+          type: 'danger',
+          message: res.data.message
+        })
+      }
+    })
+    //   await AsyncStorage.setItem('user', JSON.stringify(data));
+    //   showMessage({
+    //     type: 'success',
+    //     backgroundColor: colors.success,
+    //     color: colors.white,
+    //     message: 'Berhasil Register!',
+    //     position: 'top',
+    //   });
+    //   setIsRegister(false);
+    // } catch (err) {
+    //   console.log(err);
+    // }
+  }
 
   const handleLogin = async () => {
     if (data.email === '' || data.password === '') {
@@ -104,24 +150,22 @@ export default function Login({ navigation }) {
       });
     } else {
       try {
-        const user = await AsyncStorage.getItem('user');
-        if (user !== null) {
-          const parsed = JSON.parse(user);
-          if (parsed.email === data.email && parsed.password === data.password) {
-            showMessage({
-              type: 'success',
-              backgroundColor: colors.success,
-              color: colors.white,
-              message: 'Login Berhasil!',
-              position: 'top',
-            });
-            navigation.navigate('MainApp');
+        console.log(data);
+        axios.post(apiURL + 'login', data).then(res => {
+          if (res.data.status == 200) {
+            console.log(res.data.data);
+            storeData('user', res.data.data);
+            storeData('baru', 0);
+            navigation.replace('MainApp')
+            // setIsRegister(false)
+
           } else {
-            setErrorEmail('Email atau password salah');
+            showMessage({
+              type: 'danger',
+              message: res.data.message
+            })
           }
-        } else {
-          setErrorEmail('Email tidak ditemukan');
-        }
+        })
       } catch (err) {
         console.log(err);
       }
@@ -130,6 +174,14 @@ export default function Login({ navigation }) {
 
   const isFilled = data.email !== '' && data.password !== '' && (!isRegister || confirmPassword !== '');
 
+
+  useEffect(() => {
+    axios.post(apiURL + 'company').then(res => {
+      setCompany(res.data[0])
+    })
+    __getProvinsi();
+    __getKota();
+  }, [])
   return (
     <ImageBackground style={{ flex: 1, backgroundColor: 'white' }} source={require('../../assets/bglogin.png')}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
@@ -156,13 +208,13 @@ export default function Login({ navigation }) {
               <TouchableOpacity onPress={pilihFoto} style={{ alignItems: 'center', marginBottom: 10 }}>
                 <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#D9D9D9', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                   {data.foto ? (
-                    <Image source={{ uri: data.foto.uri }} style={{ width: '100%', height: '100%' }} />
+                    <Image source={{ uri: data.foto }} style={{ width: '100%', height: '100%' }} />
                   ) : (
                     <Text style={{ fontSize: 30, color: '#999' }}>+</Text>
                   )}
                 </View>
               </TouchableOpacity>
-              <MyInput label="Nama Lengkap" value={data.nama} onChangeText={(x) => setData({ ...data, nama: x })} iconname="person" placeholder="Masukkan Nama Lengkap"/>
+              <MyInput label="Nama Lengkap" value={data.nama} onChangeText={(x) => setData({ ...data, nama: x })} iconname="person" placeholder="Masukkan Nama Lengkap" />
               <Text style={{ fontFamily: fonts.primary[600], marginBottom: 10 }}>Jenis Kelamin</Text>
               <View style={{ flexDirection: 'row', marginBottom: 12 }}>
                 <TouchableOpacity onPress={() => setData({ ...data, kelamin: 'Perempuan' })} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 20 }}>
@@ -174,25 +226,37 @@ export default function Login({ navigation }) {
                   <Text style={{ fontFamily: fonts.primary[400], fontSize: 14 }}>Laki-Laki</Text>
                 </TouchableOpacity>
               </View>
-              <MyInput label="Nomor Telepon" value={data.telepon} onChangeText={(x) => setData({ ...data, telepon: x })} keyboardType="phone-pad" iconname="call" placeholder="Masukkan Nomor Telepon"/>
+              <MyInput label="Nomor Telepon" value={data.telepon} onChangeText={(x) => setData({ ...data, telepon: x })} keyboardType="phone-pad" iconname="call" placeholder="Masukkan Nomor Telepon" />
               <MyPicker
                 label="Provinsi"
                 iconname="location-outline"
                 value={data.provinsi}
-                onChangeText={(val) => setData({ ...data, provinsi: val, kota: kotaOptions[val][0].value })}
-                data={provinsiList}
+                onChangeText={(val) => {
+                  console.log(val.split("#"));
+                  setData({
+                    ...data,
+                    provinsi: val.split("#")[1]
+                  });
+                  __getKota(val.split("#")[0]);
+                }}
+                data={provinsi}
               />
               <MyPicker
                 label="Kota / Kabupaten"
                 iconname="business-outline"
                 value={data.kota}
-                onChangeText={(val) => setData({ ...data, kota: val })}
-                data={kotaOptions[data.provinsi] || []}
+                onChangeText={(val) => {
+                  setData({
+                    ...data,
+                    kota: val
+                  });
+                }}
+                data={kota}
               />
             </>
           )}
 
-          <MyInput label="Email" placeholder="Contoh.com@gmail.com" iconname="mail-outline" value={data.email} onChangeText={(x) => { setData({ ...data, email: x }); setErrorEmail(''); }} keyboardType="email-address" />
+          <MyInput label="Email" placeholder="contoh@gmail.com" iconname="mail-outline" value={data.email} onChangeText={(x) => { setData({ ...data, email: x }); setErrorEmail(''); }} />
 
           {errorEmail !== '' && !isRegister && (
             <Text style={{ color: 'red', fontSize: 12, marginTop: 5, marginBottom: 10, marginLeft: 12, fontFamily: fonts.primary[400] }}>{errorEmail}</Text>
@@ -205,7 +269,10 @@ export default function Login({ navigation }) {
           )}
 
           {!isRegister && (
-            <TouchableNativeFeedback>
+            <TouchableNativeFeedback onPress={() => {
+              console.log(company);
+              Linking.openURL('https://wa.me/' + company.tlp + '?text=Halo Admin, saya lupa password . . ')
+            }}>
               <View style={{ alignItems: 'flex-end', marginTop: 5, height: 18 }}>
                 <Text style={{ fontFamily: fonts.primary[600], fontSize: 13, color: '#9C42C4' }}>
                   Lupa Password ?

@@ -16,18 +16,10 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import SweetAlert from 'react-native-sweet-alert';
 import MyLoading from '../../components/MyLoading';
 import axios from 'axios';
+import { showMessage } from 'react-native-flash-message'
 
 export default function AccountEdit({ navigation, route }) {
-const [kirim, setKirim] = useState({
-  nama: route.params.nama_lengkap || '',
-  jenis_kelamin: route.params.jenis_kelamin || '',
-  telepon: route.params.telepon || '',
-  provinsi: route.params.provinsi || '',
-  kota: route.params.kota || '',
-  email: route.params.email || '',
-  foto_user: route.params.foto_user || null,
-  newfoto_user: null
-});
+    const [kirim, setKirim] = useState(route.params);
 
     const [loading, setLoading] = useState(false);
 
@@ -36,20 +28,54 @@ const [kirim, setKirim] = useState({
         axios.post(apiURL + 'update_profile', kirim).then(res => {
             setLoading(false);
             if (res.data.status == 200) {
-                SweetAlert.showAlertWithOptions({
-                    title: MYAPP,
-                    subTitle: res.data.message,
-                    style: 'success',
-                    cancellable: true
-                }, callback => {
-                    storeData('user', res.data.data);
-                    navigation.replace('MainApp');
-                });
+                showMessage({
+                    type: 'success',
+                    message: res.data.message
+                })
+                storeData('user', res.data.data);
+                navigation.replace('MainApp');
             }
         });
     };
 
+    const [provinsi, setProvinsi] = useState([]);
+    const [kota, setKota] = useState([]);
+
+    const __getProvinsi = () => {
+        axios.get('https://emsifa.github.io/api-wilayah-indonesia/api/provinces.json').then(res => {
+
+            let tmp = [];
+            res.data.map(i => {
+                tmp.push({
+                    label: i.name,
+                    value: i.id + '#' + i.name
+                })
+            });
+            console.log(tmp);
+            setProvinsi(tmp);
+        })
+    }
+
+
+    const __getKota = (x = 11) => {
+        axios.get(`https://emsifa.github.io/api-wilayah-indonesia/api/regencies/${x}.json`).then(res => {
+
+            let tmp = [];
+            res.data.map(i => {
+                tmp.push({
+                    label: i.name,
+                    value: i.name
+                })
+            });
+            console.log(tmp);
+            setKota(tmp);
+
+        })
+    }
+
     useEffect(() => {
+        __getKota();
+        __getProvinsi();
         setKirim({
             ...kirim,
             newfoto_user: null,
@@ -57,63 +83,63 @@ const [kirim, setKirim] = useState({
     }, []);
 
     const pilihFoto = () => {
-        launchImageLibrary({ mediaType: 'photo', quality: 0.5 }, res => {
+        launchImageLibrary({ mediaType: 'photo', quality: 0.5, includeBase64: true }, res => {
             if (!res.didCancel && res.assets) {
-                setKirim({ ...kirim, newfoto_user: res.assets[0].uri });
+                setKirim({
+                    ...kirim,
+                    newfoto_user: `data:${res.assets[0].type};base64,${res.assets[0].base64}`
+                });
             }
         });
     };
 
     return (
         <ImageBackground source={require('../../assets/bgsplash.png')} style={styles.container}>
-        <MyHeader title='Ubah Profile'/>
+            <MyHeader title='Ubah Profile' />
             <ScrollView contentContainerStyle={styles.wrapper}>
                 <Image source={require('../../assets/logo.png')} style={styles.logo} />
                 <TouchableOpacity onPress={pilihFoto} style={styles.fotoWrap}>
-               {(kirim.newfoto_user || kirim.foto_user) ? (
-  <Image source={{ uri: kirim.newfoto_user || kirim.foto_user }} style={styles.foto} />
-
-                    ) : (
-                        <View style={styles.plusBox}><Text style={styles.plusText}>+</Text></View>
-                    )}
+                    <Image source={{ uri: kirim.newfoto_user !== null ? kirim.newfoto_user : kirim.foto_user }} style={styles.foto} />
                 </TouchableOpacity>
 
                 <MyInput label="Nama Lengkap Parents" iconname="person-outline" value={kirim.nama} onChangeText={x => setKirim({ ...kirim, nama: x })} />
                 <Text style={styles.label}>Jenis Kelamin</Text>
                 <View style={styles.row}>
-                    <TouchableOpacity style={styles.radio} onPress={() => setKirim({ ...kirim, jenis_kelamin: 'Perempuan' })}>
-                        <View style={[styles.radioOuter, kirim.jenis_kelamin === 'Perempuan' && styles.radioActive]} />
+                    <TouchableOpacity style={styles.radio} onPress={() => setKirim({ ...kirim, kelamin: 'Perempuan' })}>
+                        <View style={[styles.radioOuter, kirim.kelamin === 'Perempuan' && styles.radioActive]} />
                         <Text style={styles.radioLabel}>Perempuan</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.radio} onPress={() => setKirim({ ...kirim, jenis_kelamin: 'Laki-laki' })}>
-                        <View style={[styles.radioOuter, kirim.jenis_kelamin === 'Laki-laki' && styles.radioActive]} />
+                    <TouchableOpacity style={styles.radio} onPress={() => setKirim({ ...kirim, kelamin: 'Laki-Laki' })}>
+                        <View style={[styles.radioOuter, kirim.kelamin === 'Laki-Laki' && styles.radioActive]} />
                         <Text style={styles.radioLabel}>Laki-laki</Text>
                     </TouchableOpacity>
                 </View>
                 <MyInput label="Nomor Telepon" iconname="call-outline" value={kirim.telepon} onChangeText={x => setKirim({ ...kirim, telepon: x })} />
+
+
                 <MyPicker
-                    label="Provinsi"
+                    label={`Provinsi ( ${kirim.provinsi} )`}
                     iconname="location-outline"
                     value={kirim.provinsi}
-                    onChangeText={(val) => setKirim({ ...kirim, provinsi: val })}
-                    data={[
-                        { label: 'DKI Jakarta', value: 'DKI Jakarta' },
-                        { label: 'Jawa Barat', value: 'Jawa Barat' },
-                        { label: 'Jawa Tengah', value: 'Jawa Tengah' },
-                    ]}
+                    onChangeText={(val) => {
+                        setKirim({ ...kirim, provinsi: val.split("#")[1] });
+                        __getKota(val.split("#")[0])
+                    }}
+                    data={provinsi}
                 />
                 <MyPicker
-                    label="Kota/Kabupaten"
+                    label={`Kabupatan/Kota ( ${kirim.kota} )`}
                     iconname="business-outline"
                     value={kirim.kota}
                     onChangeText={(val) => setKirim({ ...kirim, kota: val })}
-                    data={[
-                        { label: 'Jakarta Pusat', value: 'Jakarta Pusat' },
-                        { label: 'Bandung', value: 'Bandung' },
-                        { label: 'Semarang', value: 'Semarang' },
-                    ]}
+                    data={kota}
                 />
 
+                <MyInput label="Email" iconname="mail-outline" value={kirim.email} onChangeText={x => setKirim({ ...kirim, email: x })} />
+                <MyInput label="Password" placeholder="Kosongkan jika tidak diubah" iconname="lock-closed-outline" secureTextEntry onChangeText={(x) => setKirim({
+                    ...kirim,
+                    newpassword: x
+                })} />
                 <TouchableOpacity onPress={sendServer} style={styles.saveBtn}>
                     <Text style={styles.saveText}>Simpan</Text>
                 </TouchableOpacity>
@@ -127,7 +153,7 @@ const [kirim, setKirim] = useState({
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F9EDF7' },
     wrapper: { padding: 20 },
-    logo: { width: 200, height: 102,  alignSelf: 'center', marginTop:-20 },
+    logo: { width: 200, height: 102, alignSelf: 'center', marginTop: -20 },
     title: { fontFamily: fonts.primary[800], fontSize: 20, textAlign: 'center', marginVertical: 20 },
     fotoWrap: {
         alignSelf: 'center',

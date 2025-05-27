@@ -10,11 +10,13 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { getData, storeData } from '../../utils/localStorage';
+import { apiURL, getData, storeData } from '../../utils/localStorage';
 import { fonts, colors } from '../../utils';
 import { Icon } from 'react-native-elements';
 import { useIsFocused } from '@react-navigation/native';
 import { MyHeader } from '../../components';
+import { showMessage } from 'react-native-flash-message';
+import axios from 'axios';
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState({});
@@ -22,15 +24,29 @@ export default function ProfileScreen({ navigation }) {
   const isFocused = useIsFocused();
   const [loading, setLoading] = useState(true);
 
+  const __getAnak = () => {
+    getData('user').then(u => {
+
+      axios.post(apiURL + 'anak', {
+        fid_pengguna: u.id_pengguna
+      }).then(res => {
+        console.log(res.data);
+        setAnakCount(res.data.length);
+
+      })
+
+    })
+  }
+
   useEffect(() => {
     if (isFocused) {
+      __getAnak();
       getData('user').then(res => {
         setUser(res || {});
         setLoading(false);
       });
-      getData('anak').then(res => {
-        setAnakCount(res?.length || 0);
-      });
+
+
     }
   }, [isFocused]);
 
@@ -57,12 +73,12 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-    <MyHeader title='Profile Parents'/>
+      <MyHeader title='Profile Parents' />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileCard}>
           <View style={styles.rowTop}>
             <Image
-              source={user.foto?.uri ? { uri: user.foto.uri } : require('../../assets/user.png')}
+              source={user.foto_user ? { uri: user.foto_user } : require('../../assets/user.png')}
               style={styles.avatar}
             />
             <View style={styles.profileText}>
@@ -83,6 +99,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Info */}
         <View style={styles.infoBox}>
+          <View style={styles.infoItem}><Text style={styles.label}>Jenis Kelamin</Text><Text>{user.kelamin || '-'}</Text></View>
           <View style={styles.infoItem}><Text style={styles.label}>Email</Text><Text>{user.email || '-'}</Text></View>
           <View style={styles.infoItem}><Text style={styles.label}>Nomor Telepon</Text><Text>{user.telepon || '-'}</Text></View>
           <View style={styles.infoItem}><Text style={styles.label}>Provinsi</Text><Text>{user.provinsi || '-'}</Text></View>
@@ -90,24 +107,14 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         <TouchableOpacity style={styles.editBtn} onPress={() => {
-  navigation.navigate('AccountEdit', {
-    nama_lengkap: user.nama || '',
-    jenis_kelamin: user.kelamin || '',
-    telepon: user.telepon || '',
-    email: user.email || '',
-    username: user.username || '',
-    provinsi: user.provinsi || '',
-    kota: user.kota || '',
-    tanggal_lahir: user.tanggal_lahir || '',
-    foto_user: user.foto?.uri || null,
-  });
-}}
->
+          navigation.navigate('AccountEdit', user);
+        }}
+        >
           <Text style={styles.editBtnText}>Ubah Profil</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.deleteBtn} onPress={handleLogout}>
-          <Text style={styles.deleteBtnText}>Hapus Profil</Text>
+          <Text style={styles.deleteBtnText}>Keluar</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -178,7 +185,7 @@ const styles = StyleSheet.create({
     height: 20,
     resizeMode: 'contain',
     marginRight: 8,
-    tintColor:"#9F48B8"
+    tintColor: "#9F48B8"
   },
   childCount: {
     fontSize: 18,

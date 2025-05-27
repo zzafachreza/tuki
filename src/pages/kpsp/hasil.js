@@ -1,42 +1,62 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import React from 'react';
 import { colors, fonts } from '../../utils';
-import { storeData, pushNotif } from '../../utils/localStorage';
+import { storeData, pushNotif, apiURL } from '../../utils/localStorage';
 import moment from 'moment';
 import { CommonActions } from '@react-navigation/native';
 
+import { showMessage } from 'react-native-flash-message';
+import axios from 'axios';
 
 export default function HasilKPSP({ route, navigation }) {
-  const { statusKPSP, dataAnak, jawaban } = route.params;
+  const ITEM = route.params.anak;
+  const NILAI = route.params.hasil;
 
   const simpanHasilKeStorage = async () => {
-    const hasil = {
-      status: statusKPSP,
-      tanggal: moment().format('YYYY-MM-DD HH:mm'),
-      jawaban: jawaban,
+    const kirim = {
+      nilai: NILAI,
+      fid_anak: ITEM.id_anak,
+      hasil: renderContent().hasil,
+      warna: renderContent().backgroundColor,
+      saran: renderContent().saran.map((item, index) => `${index + 1}. ${item}`).join("\n\n")
     };
 
-    await storeData(`kpsp_${dataAnak.id}`, hasil);
+    console.log(kirim);
 
     // Notifikasi 1: Terima kasih
     await pushNotif({
-  title: 'KPSP sudah terisi',
-  message: 'Terimakasih parents sudah menyediakan waktunya untuk melakukan skrining dengan KPSP',
-  
-});
+      title: 'KPSP sudah terisi',
+      message: 'Terimakasih parents sudah menyediakan waktunya untuk melakukan skrining dengan KPSP',
 
-await pushNotif({
-  title: `Hasil KPSP: ${dataAnak.nama}`,
-  message: `${dataAnak.nama}, hasil KPSP: ${statusKPSP}`,
-});
+    });
+
+    await pushNotif({
+      title: `Hasil KPSP: ${ITEM.nama_anak}`,
+      message: `${ITEM.nama_anak}, hasil KPSP: ${renderContent().hasil}`,
+    });
+
+    axios.post(apiURL + 'add_nilai', kirim).then(res => {
+      console.log(res.data);
+      if (res.data.status == 200) {
+        showMessage({
+          type: 'success',
+          message: res.data.message
+        });
+        navigation.replace('MainApp')
+      }
+    })
+
+
+
   };
 
   const renderContent = () => {
-    switch (statusKPSP) {
-      case 'Sesuai Umur':
+    switch (NILAI) {
+      case 3:
         return {
           backgroundColor: '#37BEB0',
-          title: `${dataAnak.nama}, Sesuai Umur`,
+          hasil: 'Sesuai Umur',
+          title: `${ITEM.nama_anak}, Sesuai Umur`,
           saran: [
             'Melanjutkan memberikan si kecil stimulasi perkembangan sesuai umur',
             'Ikutkan si kecil teratur 1x/bulan kegiatan penimbangan dan pelayanan kesehatan di posyandu dan setiap ada kegiatan Bina Keluarga Balita (BKB)',
@@ -44,25 +64,27 @@ await pushNotif({
             'Setiap 3 bulan, lakukan skrining rutin menggunakan KPSP'
           ]
         };
-      case 'Meragukan':
+      case 2:
         return {
           backgroundColor: '#FFB534',
-          title: `${dataAnak.nama}, Meragukan`,
+          hasil: 'Meragukan',
+          title: `${ITEM.nama_anak}, Meragukan`,
           saran: [
             'Lakukan stimulasi setiap saat dan sesering mungkin pada si kecil',
             'Lakukan skrining KPSP 2 minggu kemudian, bila hasil tetap meragukan atau ada kemungkinan penyimpangan, rujuk ke rumah sakit tumbuh kembang level 1',
             'Lakukan pemeriksaan kesehatan untuk mencari kemungkinan adanya penyakit yang menyebabkan penyimpangan perkembangannya dan lakukan pengobatan'
           ]
         };
-      case 'Ada Kemungkinan Penyimpangan':
+      case 1:
         return {
           backgroundColor: '#F05945',
-          title: `${dataAnak.nama}, Ada Kemungkinan Penyimpangan`,
+          hasil: 'Ada Kemungkinan Penyimpangan',
+          title: `${ITEM.nama_anak}, Ada Kemungkinan Penyimpangan`,
           saran: ['Rujuk ke Rumah Sakit Tumbuh Kembang Level 1']
         };
       default:
         return {
-          backgroundColor: '#ccc',
+          backgroundColor: '#BA68C8',
           title: 'Belum Diisi',
           saran: ['Silakan isi semua pertanyaan terlebih dahulu']
         };
@@ -88,19 +110,15 @@ await pushNotif({
           ))}
         </View>
 
-      <TouchableOpacity
-  onPress={async () => {
-    await simpanHasilKeStorage();
-    await storeData('kpsp_thanks_pending', 'true');
+        <TouchableOpacity
+          onPress={async () => {
+            await simpanHasilKeStorage();
 
-    navigation.navigate('MainApp', {
-      screen: 'Home',
-    });
-  }}
-  style={styles.btnSimpan}
->
-  <Text style={styles.textBtn}>Selesai</Text>
-</TouchableOpacity>
+          }}
+          style={styles.btnSimpan}
+        >
+          <Text style={styles.textBtn}>Selesai</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </View>
