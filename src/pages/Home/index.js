@@ -83,15 +83,32 @@ export default function Home({ navigation, route }) {
         console.log(res.data);
         setAnak(res.data);
         if (res.data.length == 0) {
-          getData('notifikasi').then(nn => {
-            let tmp = [...nn];
-            tmp.push({
-              title: 'Ayo mulai skrining dengan KPSP',
-              message: 'Halo Parents !\nProfil si kecil sudah, yuk kita mulai skrining si kecil',
-              timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
-            });
-            storeData('notifikasi', tmp);
+
+          getData('baru').then(res => {
+            console.log(res);
+            if (res == 0) {
+
+              setShowWelcome(true);
+              getData('notifikasi').then(nn => {
+                let tmp = [...nn];
+                tmp.push({
+                  title: 'Profil si Kecil',
+                  message: 'Halo Parents !\nSelamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.',
+                  timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+                });
+                storeData('notifikasi', tmp);
+              })
+            }
           })
+          // getData('notifikasi').then(nn => {
+          //   let tmp = [...nn];
+          //   tmp.push({
+          //     title: 'Ayo mulai skrining dengan KPSP',
+          //     message: 'Halo Parents !\nProfil si kecil sudah, yuk kita mulai skrining si kecil',
+          //     timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+          //   });
+          //   storeData('notifikasi', tmp);
+          // })
         }
       })
 
@@ -99,27 +116,25 @@ export default function Home({ navigation, route }) {
   }
 
   useEffect(() => {
-    getData('baru').then(res => {
-      console.log(res);
-      if (res == 0) {
 
-        setShowWelcome(true);
-        getData('notifikasi').then(nn => {
-          let tmp = [...nn];
-          tmp.push({
-            title: 'Profil si Kecil',
-            message: 'Halo Parents !\nSelamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.',
-            timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
-          });
-          storeData('notifikasi', tmp);
-        })
-      }
-    })
     getData('user').then(res => {
       setUser(res);
     })
 
     if (isFocus) {
+
+      getData('anak').then(a => {
+        if (a == 1) {
+          setShowAnakThanks(true);
+        }
+      })
+
+      getData('kpsp').then(a => {
+        if (a == 1) {
+          setShowKpspThanks(true);
+        }
+      })
+
       __NilaiWEEK();
       __getAnak();
     }
@@ -214,8 +229,40 @@ export default function Home({ navigation, route }) {
     '#F05945',
     '#FF9800',
     '#37BEB0',
-    // '#BDBDBD'
+    '#BDBDBD'
   ]
+
+
+  function hitungUmurKoreksi(tglLahir, tglPeriksa, usiaKehamilanSaatLahir) {
+    const MILIS_PER_HARI = 1000 * 60 * 60 * 24;
+
+    // Konversi tanggal ke objek Date
+    const lahir = new Date(tglLahir);
+    const periksa = new Date(tglPeriksa);
+
+    // Hitung umur kronologis dalam hari
+    const selisihHari = Math.floor((periksa - lahir) / MILIS_PER_HARI);
+
+    // Koreksi prematur dalam hari
+    const koreksiPrematurHari = (40 - usiaKehamilanSaatLahir) * 7;
+    const umurKoreksiHari = selisihHari - koreksiPrematurHari;
+
+    // Konversi ke tahun, bulan, hari
+    const tahun = Math.floor(umurKoreksiHari / 365);
+    const sisaHariSetelahTahun = umurKoreksiHari % 365;
+
+    const bulan = Math.floor(sisaHariSetelahTahun / 30);
+    const hari = sisaHariSetelahTahun % 30;
+
+    return {
+      umurKronologisHari: selisihHari,
+      umurKoreksiHari: umurKoreksiHari,
+      umurKoreksiFormat: `${tahun} thn / ${bulan} bln/ ${hari} hr`
+    };
+  }
+
+
+
   const renderAnak = ({ item, index }) => (
     <TouchableOpacity onPress={() => navigation.navigate('ProfileSiKecil', item)} style={styles.childCard}>
       <Image
@@ -240,7 +287,8 @@ export default function Home({ navigation, route }) {
           </View>
 
         </View>
-        <Text style={styles.childText}>{getUmurLengkap(item.tanggal_lahir)}</Text>
+        {item.prematur == 'Tidak' && <Text style={styles.childText}>{getUmurLengkap(item.tanggal_lahir)}</Text>}
+        {item.prematur == 'Ya' && <Text style={styles.childText}>{hitungUmurKoreksi(item.tanggal_lahir, moment().format('YYYY-MM-DD'), 34).umurKoreksiFormat}</Text>}
         <Text style={styles.childText}>⚖️ {item.berat} kg   📏 {item.tinggi} cm</Text>
       </View>
     </TouchableOpacity>
@@ -385,7 +433,16 @@ export default function Home({ navigation, route }) {
               Halo Parents !{"\n"}
               Selamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.
             </Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => { storeData('baru', 1); setShowWelcome(false); }}>
+            <TouchableOpacity style={styles.modalButton} onPress={async () => {
+              {
+                storeData('baru', 1);
+                setShowWelcome(false);
+                // await pushNotif({
+                //   title: 'Profil si Kecil',
+                //   message: ' Halo Parents !\nSelamat datang, tambahkan profil si Kecil terlebih dahulu ya untuk bisa akses fitur skrining KPSP.'
+                // })
+              }
+            }}>
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
             <View style={styles.modalFooter}>
@@ -401,7 +458,14 @@ export default function Home({ navigation, route }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={[styles.modalTitle, { textAlign: 'center' }]}>Isi profil Si Kecil terlebih dahulu untuk mengakses KPSP</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => setShowKpspAlert(false)}>
+            <TouchableOpacity style={styles.modalButton} onPress={async () => {
+              setShowKpspAlert(false)
+              await pushNotif({
+                title: 'Isi profil Si Kecil',
+                message: 'Halo Parents !\nIsi profil Si Kecil terlebih dahulu untuk mengakses KPSP'
+              })
+            }
+            }>
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
             <View style={styles.modalFooter}>
@@ -424,7 +488,10 @@ export default function Home({ navigation, route }) {
 
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => setShowKpspThanks(false)}
+              onPress={() => {
+                setShowKpspThanks(false);
+                storeData('kpsp', 0)
+              }}
             >
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
@@ -453,7 +520,10 @@ export default function Home({ navigation, route }) {
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => setShowAnakThanks(false)}>
+              onPress={() => {
+                setShowAnakThanks(false);
+                storeData('anak', 0)
+              }}>
               <Text style={styles.modalButtonText}>OK</Text>
             </TouchableOpacity>
             <View style={styles.modalFooter}>

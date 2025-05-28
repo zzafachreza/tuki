@@ -214,7 +214,7 @@ export default function Login({ navigation }) {
                   )}
                 </View>
               </TouchableOpacity>
-              <MyInput label="Nama Lengkap" value={data.nama} onChangeText={(x) => setData({ ...data, nama: x })} iconname="person" placeholder="Masukkan Nama Lengkap" />
+              <MyInput label="Nama Lengkap Parents" value={data.nama} onChangeText={(x) => setData({ ...data, nama: x })} iconname="person" placeholder="Masukkan Nama Lengkap Parents" />
               <Text style={{ fontFamily: fonts.primary[600], marginBottom: 10 }}>Jenis Kelamin</Text>
               <View style={{ flexDirection: 'row', marginBottom: 12 }}>
                 <TouchableOpacity onPress={() => setData({ ...data, kelamin: 'Perempuan' })} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 20 }}>

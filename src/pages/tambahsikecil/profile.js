@@ -106,6 +106,31 @@ export default function ProfileSiKecil({ navigation, route }) {
 
   }
 
+  function hitungUmurKoreksi(tglLahir, tglPeriksa, usiaKehamilanSaatLahir) {
+    const MILIS_PER_HARI = 1000 * 60 * 60 * 24;
+
+    // Konversi tanggal input ke objek Date
+    const lahir = new Date(tglLahir);
+    const periksa = new Date(tglPeriksa);
+
+    // Hitung umur anak dalam hari
+    const selisihHari = Math.floor((periksa - lahir) / MILIS_PER_HARI);
+
+    // Hitung umur anak (dalam hari) setelah dikoreksi prematur
+    const koreksiPrematurHari = (40 - usiaKehamilanSaatLahir) * 7;
+    const umurKoreksiHari = selisihHari - koreksiPrematurHari;
+
+    // Konversi hari ke bulan dan hari (versi sederhana)
+    const bulan = Math.floor(umurKoreksiHari / 30);
+    const hari = umurKoreksiHari % 30;
+
+    return {
+      umurKronologisHari: selisihHari,
+      umurKoreksiHari: umurKoreksiHari,
+      umurKoreksiFormat: `${bulan} bulan ${hari} hari`
+    };
+  }
+
   const pilihFoto = () => {
     launchImageLibrary({ mediaType: 'photo', quality: 0.5, includeBase64: true }, res => {
       if (!res.didCancel && res.assets) {
@@ -170,6 +195,25 @@ export default function ProfileSiKecil({ navigation, route }) {
               setUmur(umr);
             }}
           />
+
+
+          <View style={{
+            padding: 10,
+          }}>
+
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={styles.label}>Umur : </Text>
+              <Text style={styles.label}>{getUmurDalamBulan(form.tanggal_lahir)}</Text>
+            </View>
+
+            {form.prematur == 'Ya' &&
+              <View style={{ flexDirection: 'row' }}>
+                <Text style={styles.label}>Umur Koreksi : </Text>
+                <Text style={styles.label}>{hitungUmurKoreksi(form.tanggal_lahir, moment().format('YYYY-MM-DD'), 34).umurKoreksiFormat}</Text>
+              </View>
+            }
+          </View>
+
 
 
           <Text style={styles.label}>Apakah Si Kecil lahir prematur?</Text>

@@ -5,7 +5,7 @@ import { MyHeader } from '../../components';
 import { Icon } from 'react-native-elements';
 import moment from 'moment';
 import RenderHtml from 'react-native-render-html';
-import { apiURL } from '../../utils/localStorage';
+import { apiURL, getData, storeData } from '../../utils/localStorage';
 import axios from 'axios';
 import { useEffect } from 'react';
 import { ScrollView } from 'react-native';
@@ -183,19 +183,24 @@ export default function SoalKPSP({ navigation, route }) {
   }, [])
 
   const __getSoal = () => {
-    let LEVEL = getUmurBayi(ITEM.tanggal_lahir).bulanTerdekat;
-    axios.post(apiURL + 'soal', {
-      level: LEVEL
-    }).then(res => {
-      // console.log(res.data);
-      if (res.data.length > 0) {
-        setSoal(res.data);
+    getData('soal').then(ss => {
+      console.log(ss);
+      if (ss.length > 0) {
+        setSoal(ss);
       } else {
-        showMessage({ message: 'Pertanyaan untuk kelompok umur ini belum tersedia !' });
-        navigation.goBack();
+        let LEVEL = getUmurBayi(ITEM.tanggal_lahir).bulanTerdekat;
+        axios.post(apiURL + 'soal', {
+          level: LEVEL
+        }).then(res => {
+
+          if (res.data.length > 0) {
+            setSoal(res.data);
+          } else {
+            showMessage({ message: 'Pertanyaan untuk kelompok umur ini belum tersedia !' });
+            navigation.goBack();
+          }
+        })
       }
-
-
     })
   }
 
@@ -215,11 +220,28 @@ export default function SoalKPSP({ navigation, route }) {
             flexDirection: 'row',
             alignItems: 'center',
           }} >
+            <TouchableOpacity onPress={() => {
+              if (nomorAktif > 0) {
+                setNomorAktif(nomorAktif - 1)
+              }
+            }} style={{
+              paddingRight: 20,
+            }}>
+              <Icon name='arrow-back' type='ionicon' color={colors.black} size={20} />
+            </TouchableOpacity>
             <Text style={{
               ...styles.nomor,
               flex: 1,
             }}>{nomorAktif + 1}/10</Text>
-            <Icon name='arrow-forward' type='ionicon' color={colors.black} size={20} />
+            <TouchableOpacity onPress={() => {
+              if (nomorAktif < 9) {
+                setNomorAktif(nomorAktif + 1)
+              }
+            }} style={{
+              paddingRight: 20,
+            }}>
+              <Icon name='arrow-forward' type='ionicon' color={colors.black} size={20} />
+            </TouchableOpacity>
           </View>
 
           <View style={{
@@ -254,6 +276,7 @@ export default function SoalKPSP({ navigation, route }) {
               let tmp = [...soal];
               tmp[nomorAktif].jawaban = 'Ya';
               setSoal(tmp);
+              storeData('soal', tmp);
               if (nomorAktif < 9) {
                 setNomorAktif(nomorAktif + 1)
               };
@@ -262,6 +285,7 @@ export default function SoalKPSP({ navigation, route }) {
               let tmp = [...soal];
               tmp[nomorAktif].jawaban = 'Tidak';
               setSoal(tmp);
+              storeData('soal', tmp);
               if (nomorAktif < 9) {
                 setNomorAktif(nomorAktif + 1)
               };
@@ -301,12 +325,20 @@ export default function SoalKPSP({ navigation, route }) {
                 } else if (jml >= 9 && jml <= 10) {
                   hasil = 3;
                 }
-
-
                 navigation.navigate('HasilKPSP', {
                   anak: ITEM,
                   hasil: hasil,
                 });
+                storeData('soal', []);
+              } else {
+                storeData('soal', soal);
+                axios.post(apiURL + 'update_status', {
+                  fid_anak: ITEM.id_anak
+                }).then(res => {
+                  if (res.data.status == 200) {
+                    navigation.replace('MainApp')
+                  }
+                })
               }
             }}
           >

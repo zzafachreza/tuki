@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, Modal, Animated, Easing, TouchableWithoutFeedback } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
-import { colors, fonts, windowWidth } from '../../utils';
+import { Color, colors, fonts, windowWidth } from '../../utils';
 import { MyGap, MyHeader } from '../../components';
 import { apiURL, getData } from '../../utils/localStorage';
 import moment from 'moment';
@@ -67,6 +67,37 @@ export default function MulaiKPSP({ navigation }) {
     '#F44336',
     // '#BDBDBD'
   ]
+
+  function hitungUmurKoreksi(tglLahir, tglPeriksa, usiaKehamilanSaatLahir) {
+    const MILIS_PER_HARI = 1000 * 60 * 60 * 24;
+
+    // Konversi tanggal ke objek Date
+    const lahir = new Date(tglLahir);
+    const periksa = new Date(tglPeriksa);
+
+    // Hitung umur kronologis dalam hari
+    const selisihHari = Math.floor((periksa - lahir) / MILIS_PER_HARI);
+
+    // Koreksi prematur dalam hari
+    const koreksiPrematurHari = (40 - usiaKehamilanSaatLahir) * 7;
+    const umurKoreksiHari = selisihHari - koreksiPrematurHari;
+
+    // Konversi ke tahun, bulan, hari
+    const tahun = Math.floor(umurKoreksiHari / 365);
+    const sisaHariSetelahTahun = umurKoreksiHari % 365;
+
+    const bulan = Math.floor(sisaHariSetelahTahun / 30);
+    const hari = sisaHariSetelahTahun % 30;
+
+    return {
+      umurKronologisHari: selisihHari,
+      umurKoreksiHari: umurKoreksiHari,
+      umurKoreksiFormat: `${tahun} thn / ${bulan} bln/ ${hari} hr`
+    };
+  }
+
+
+
   const __getAnak = () => {
     getData('user').then(u => {
 
@@ -127,7 +158,8 @@ export default function MulaiKPSP({ navigation }) {
               fontSize: 15,
               marginBottom: 10,
             }}>{selectedAnak.nama_anak}</Text>
-            <Text style={styles.usia}>{getUmurLengkap(selectedAnak.tanggal_lahir)}</Text>
+            {selectedAnak.prematur == 'Tidak' && <Text style={styles.usia}>{getUmurLengkap(selectedAnak.tanggal_lahir)}</Text>}
+            {selectedAnak.prematur == 'Ya' && <Text style={styles.usia}>{hitungUmurKoreksi(selectedAnak.tanggal_lahir, moment().format('YYYY-MM-DD'), 34).umurKoreksiFormat}</Text>}
 
             <Text style={styles.usia}>kelompok Umur : <Text style={{
               fontFamily: fonts.secondary[800]
@@ -169,6 +201,12 @@ export default function MulaiKPSP({ navigation }) {
             fontSize: 14,
             marginBottom: 10,
           }}>
+            <Text style={{
+              fontFamily: fonts.secondary[800],
+              marginBottom: 10,
+              color: colors.black,
+              textAlign: 'justify',
+            }}>Alat dan Bahan yang Dibutuhkan</Text>
             <RenderHtml
 
               tagsStyles={{
@@ -219,33 +257,41 @@ export default function MulaiKPSP({ navigation }) {
               </View>
               <ScrollView contentContainerStyle={{ padding: 20 }}>
                 <View style={styles.wrapCard}>
-                  {anakList.map((item, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.card}
-                      onPress={() => {
-                        let LEVEL = getUmurBayi(item.tanggal_lahir).bulanTerdekat;
-                        axios.post(apiURL + 'kelompok', {
-                          level: LEVEL
-                        }).then(res => {
-                          console.log(res.data);
-                          setAlat(res.data[0]);
-                          setSelectedAnak(item);
-                          closeModal();
-                        })
+                  {anakList.map((item, index) =>
 
-                      }}>
-                      <Image
-                        source={{
-                          uri: item.foto_anak
-                        }}
-                        style={styles.foto}
-                      />
-                      <Text style={styles.nama}>{item.nama_anak}</Text>
-                      <Text style={styles.usia}>{getUmurLengkap(item.tanggal_lahir)}</Text>
-                      <Text style={styles.data}>⚖️ {item.berat || '00'} kg   📏 {item.tinggi || '00'} cm</Text>
-                    </TouchableOpacity>
-                  ))}
+                    getUmurBayi(item.tanggal_lahir).bulan >= 3 && getUmurBayi(item.tanggal_lahir).bulan <= 72 &&
+                    (
+
+
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.card}
+                        onPress={() => {
+
+                          let LEVEL = getUmurBayi(item.tanggal_lahir).bulanTerdekat;
+                          axios.post(apiURL + 'kelompok', {
+                            level: LEVEL
+                          }).then(res => {
+                            console.log(res.data);
+                            setAlat(res.data[0]);
+                            setSelectedAnak(item);
+                            closeModal();
+                          })
+
+
+                        }}>
+                        <Image
+                          source={{
+                            uri: item.foto_anak
+                          }}
+                          style={styles.foto}
+                        />
+                        <Text style={styles.nama}>{item.nama_anak}</Text>
+                        {item.prematur == 'Tidak' && <Text style={styles.usia}>{getUmurLengkap(item.tanggal_lahir)}</Text>}
+                        {item.prematur == 'Ya' && <Text style={styles.usia}>{hitungUmurKoreksi(item.tanggal_lahir, moment().format('YYYY-MM-DD'), 34).umurKoreksiFormat}</Text>}
+                        <Text style={styles.data}>⚖️ {item.berat || '00'} kg   📏 {item.tinggi || '00'} cm</Text>
+                      </TouchableOpacity>
+                    ))}
                 </View>
               </ScrollView>
             </Animated.View>

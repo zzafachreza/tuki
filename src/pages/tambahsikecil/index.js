@@ -83,6 +83,7 @@ export default function TambahSiKecil({ navigation }) {
             type: 'success',
             message: res.data.message
           });
+          storeData('anak', 1);
           navigation.goBack();
         }
       })

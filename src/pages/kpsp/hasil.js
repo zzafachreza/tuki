@@ -18,7 +18,7 @@ export default function HasilKPSP({ route, navigation }) {
       fid_anak: ITEM.id_anak,
       hasil: renderContent().hasil,
       warna: renderContent().backgroundColor,
-      saran: renderContent().saran.map((item, index) => `${index + 1}. ${item}`).join("\n\n")
+      saran: renderContent().saran.length == 1 ? renderContent().saran.join() : renderContent().saran.map((item, index) => `${index + 1}. ${item}`).join("\n\n")
     };
 
     console.log(kirim);
@@ -42,6 +42,7 @@ export default function HasilKPSP({ route, navigation }) {
           type: 'success',
           message: res.data.message
         });
+        storeData('kpsp', 1);
         navigation.replace('MainApp')
       }
     })
